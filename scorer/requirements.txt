@@ -1,0 +1,7 @@
+fastembed
+httpx
+lxml_html_clean  # trafilatura needs it; lxml no longer bundles it
+openai
+psycopg[binary]
+trafilatura
+vercel
