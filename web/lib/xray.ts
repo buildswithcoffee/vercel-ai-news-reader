@@ -52,6 +52,30 @@ export const parts = {
     why: "Conversations are durable and survive restarts, every run is traced in Agent Runs, and it ships with the same git push.",
     href: "https://eve.dev/docs",
   },
+  services: {
+    name: "Vercel Services",
+    what: "Signal is four services in one project: the Next.js site, a private Python API, the agent, and the scorer daemon.",
+    why: "Each part uses the right language for its job, and they all ship together from one git push.",
+    href: "https://vercel.com/docs/services",
+  },
+  workflow: {
+    name: "Vercel Workflow",
+    what: "Every conversation with the guide runs as a durable workflow that saves its progress at each step.",
+    why: "A conversation survives restarts and redeploys and picks up where it left off, with no queue or state store to build.",
+    href: "https://vercel.com/docs/workflow",
+  },
+  sandbox: {
+    name: "Vercel Sandbox",
+    what: "Signal's guide only reads docs, so it never opens one. Give an eve agent tools that run code, and on Vercel each conversation gets its own sandbox.",
+    why: "Code the model writes runs in an isolated VM, away from your app and your data.",
+    href: "https://vercel.com/docs/vercel-sandbox",
+  },
+  observability: {
+    name: "Observability",
+    what: "Logs from every service land in one place: page renders, the Python API, the scorer's scans, and every agent conversation in Agent Runs.",
+    why: "When something breaks you see it across the whole app, without wiring up a logging vendor.",
+    href: "https://vercel.com/docs/observability",
+  },
   previews: {
     name: "Git and preview deployments",
     what: "Every pull request to this repo gets its own preview URL, with its own database branch, where the team can comment right on the page.",

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeSwitch, getTheme } from "./theme";
-import { XraySwitch } from "./xray";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -41,7 +40,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/ask" className="hover:text-foreground">Ask</Link>
             </nav>
             <div className="ml-auto flex items-center gap-2">
-              <XraySwitch />
+              <Link
+                href="/xray"
+                className="rounded-full border border-accent px-3 py-1 text-xs text-accent hover:bg-accent hover:text-white"
+              >
+                X-ray
+              </Link>
               <ThemeSwitch />
             </div>
           </div>

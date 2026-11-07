@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getProfile, saveProfile } from "@/lib/db";
 import { requestRescore } from "@/lib/backend";
-import { Xray } from "../xray";
 
 const TOPICS = [
   "AI agents",
@@ -69,7 +68,6 @@ export default async function InterestsPage() {
         </button>
       </form>
 
-      <Xray show={["api", "queue"]} />
     </section>
   );
 }

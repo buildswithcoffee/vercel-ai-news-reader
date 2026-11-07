@@ -1,5 +1,5 @@
 import { parts, type PartName } from "@/lib/xray";
-import { Xray } from "../xray";
+import { PartCards } from "../xray";
 
 export const metadata = { title: "How it works · Signal" };
 
@@ -36,7 +36,7 @@ export default function HowItWorksPage() {
       </ol>
 
       <h2 className="mt-10 font-medium">The parts</h2>
-      <Xray always show={Object.keys(parts) as PartName[]} />
+      <PartCards show={Object.keys(parts) as PartName[]} />
     </section>
   );
 }

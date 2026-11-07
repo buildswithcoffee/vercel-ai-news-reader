@@ -35,3 +35,37 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
+
+/* X-ray's mock chat plays each time its slide comes into view (see app/xray/slides.tsx). */
+@media (prefers-reduced-motion: no-preference) {
+  .play-in,
+  .play-typing {
+    opacity: 0;
+  }
+  [data-active] .play-in {
+    animation: play-in 0.4s var(--at) both;
+  }
+  [data-active] .play-typing {
+    animation: play-typing var(--for) var(--at);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .play-typing {
+    display: none;
+  }
+}
+@keyframes play-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes play-typing {
+  10%,
+  90% {
+    opacity: 1;
+  }
+}

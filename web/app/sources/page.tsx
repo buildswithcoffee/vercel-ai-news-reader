@@ -1,7 +1,6 @@
 import { refresh } from "next/cache";
 import { connection } from "next/server";
 import { getSources, setSourceEnabled, type Source } from "@/lib/db";
-import { Xray } from "../xray";
 
 export const metadata = { title: "Sources · Signal" };
 
@@ -29,7 +28,6 @@ export default async function SourcesPage() {
         ))}
       </ul>
 
-      <Xray show={["neon", "daemon"]} />
     </section>
   );
 }
