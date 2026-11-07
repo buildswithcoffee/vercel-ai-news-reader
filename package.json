@@ -1,0 +1,17 @@
+{
+  "name": "signal",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "agent": "eve dev"
+  },
+  "engines": {
+    "node": "24.x"
+  },
+  "packageManager": "pnpm@12.9.1",
+  "dependencies": {
+    "ai": "^7.0.163",
+    "eve": "1.0.0-rc.6",
+    "zod": "^4.6.7"
+  }
+}

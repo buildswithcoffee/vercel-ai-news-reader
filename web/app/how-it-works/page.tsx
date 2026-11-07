@@ -17,8 +17,8 @@ export default function HowItWorksPage() {
     <section>
       <h1 className="text-2xl font-semibold tracking-tight">How Signal works</h1>
       <p className="mt-2 text-muted">
-        One Vercel project: a Next.js app, a private Python API, an always-on Python worker, and a Postgres
-        database, all deployed together from one git push.
+        One Vercel project: a Next.js app, a private Python API, an always-on Python worker, an AI agent, and
+        a Postgres database, all deployed together from one git push.
       </p>
 
       <h2 className="mt-10 font-medium">The life of a story</h2>
