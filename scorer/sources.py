@@ -11,14 +11,7 @@ import httpx
 HN_API = "https://hacker-news.firebaseio.com/v0"
 STORIES_PER_SOURCE = 20
 
-RSS_FEEDS = {
-    "The Verge": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
-    "TechCrunch": "https://techcrunch.com/category/artificial-intelligence/feed/",
-    "Ars Technica": "https://feeds.arstechnica.com/arstechnica/technology-lab",
-    "Google AI": "https://blog.google/technology/ai/rss/",
-    "Vercel": "https://vercel.com/atom",
-    "Hugging Face": "https://huggingface.co/blog/feed.xml",
-}
+HACKER_NEWS = "https://news.ycombinator.com/"  # read through its API, not a feed
 
 
 @dataclass
@@ -34,11 +27,14 @@ class Story:
         return hashlib.sha1(self.url.encode()).hexdigest()[:16]
 
 
-async def fetch_stories() -> list[Story]:
+async def fetch_stories(feeds: list[dict]) -> list[Story]:
+    """Reads each feed you've turned on (rows from the feeds table)."""
     async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
         results = await asyncio.gather(
-            fetch_hacker_news(client),
-            *(fetch_rss(client, name, url) for name, url in RSS_FEEDS.items()),
+            *(
+                fetch_hacker_news(client) if feed["url"] == HACKER_NEWS else fetch_rss(client, feed["name"], feed["url"])
+                for feed in feeds
+            ),
             return_exceptions=True,  # one broken feed shouldn't stop the scan
         )
 

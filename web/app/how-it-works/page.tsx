@@ -4,7 +4,7 @@ import { Xray } from "../xray";
 export const metadata = { title: "How it works · Signal" };
 
 const STEPS: { text: string; part: PartName }[] = [
-  { text: "Every 15 minutes, the scorer scans Hacker News and tech blogs and reads each new article.", part: "daemon" },
+  { text: "Every 15 minutes, the scorer scans the sources you turned on, like Hacker News and AI lab blogs, and reads each new article.", part: "daemon" },
   { text: "It saves each article to Postgres.", part: "neon" },
   { text: "A small embedding model keeps the articles that match your interests, and an LLM scores them and says why they matter.", part: "gateway" },
   { text: "The feed renders on the server and checks for new scores every 5 seconds.", part: "web" },
