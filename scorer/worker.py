@@ -101,8 +101,8 @@ async def fetch_all(conn: psycopg.AsyncConnection, query: str, *params) -> list[
 
 async def score(conn: psycopg.AsyncConnection, articles: list[dict]) -> None:
     profile = next(iter(await fetch_all(conn, "select about, topics from profile")), None)
-    if not profile:
-        return  # nothing to score against until you say what you care about
+    if not profile or not articles:
+        return  # nothing to score yet
 
     interests = [profile["about"], *profile["topics"]]
     relevant = [article for article in articles if is_relevant(article, interests)]
@@ -169,7 +169,8 @@ async def scan_until(stop: asyncio.Event) -> None:
 
 
 async def main() -> None:
-    # Same region the api service sends to. ALL_DEPLOYMENTS keeps work flowing across redeploys.
+    # Same region and shared, deployment-wide space the api service sends to, so work keeps
+    # flowing across redeploys.
     queue = QueueClient(region="iad1", deployment=ALL_DEPLOYMENTS)
     stop = asyncio.Event()
     asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, stop.set)

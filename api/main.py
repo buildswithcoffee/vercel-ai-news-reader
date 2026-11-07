@@ -1,12 +1,13 @@
 """Signal's private API. It has no public route; only the web app reaches it, through its service binding."""
 
 from fastapi import FastAPI
-from vercel.queue import QueueClient
+from vercel.queue import ALL_DEPLOYMENTS, QueueClient
 
 app = FastAPI()
 
-# Pinned so the scorer daemon always polls the region these messages are sent to.
-queue = QueueClient(region="iad1")
+# The scorer daemon isn't tied to a deployment, so it polls the queue's shared, deployment-wide
+# space. Send there too, in the same pinned region, or it never sees these messages.
+queue = QueueClient(region="iad1", deployment=ALL_DEPLOYMENTS)
 
 
 @app.post("/rescore")
