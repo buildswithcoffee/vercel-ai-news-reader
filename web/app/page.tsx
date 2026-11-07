@@ -4,7 +4,6 @@ import Link from "next/link";
 import { getFeed, getProfile, type FeedItem, type Sort } from "@/lib/db";
 import { timeAgo } from "@/lib/time";
 import { AutoRefresh } from "./auto-refresh";
-import { Xray } from "./xray";
 
 const SORTS: { value: Sort; label: string }[] = [
   { value: "relevance", label: "Most relevant" },
@@ -34,7 +33,6 @@ export default async function FeedPage({ searchParams }: PageProps<"/">) {
       </nav>
       <AutoRefresh />
 
-      <Xray show={["web", "neon", "daemon", "gateway"]} />
 
       {feed.length === 0 ? (
         <p className="mt-10 rounded-xl border border-dashed border-line p-10 text-center text-muted">
