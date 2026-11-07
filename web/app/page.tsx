@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getFeed, getProfile, type FeedItem } from "@/lib/db";
 import { timeAgo } from "@/lib/time";
 import { AutoRefresh } from "./auto-refresh";
+import { Xray } from "./xray";
 
 export default async function FeedPage() {
   await connection(); // render on every request; the feed changes as the scorer writes
@@ -26,6 +27,8 @@ export default async function FeedPage() {
         </div>
         <AutoRefresh />
       </div>
+
+      <Xray show={["web", "neon", "daemon", "gateway"]} />
 
       {feed.length === 0 ? (
         <p className="mt-10 rounded-xl border border-dashed border-line p-10 text-center text-muted">
