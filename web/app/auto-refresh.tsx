@@ -12,5 +12,5 @@ export function AutoRefresh() {
     return () => clearInterval(id);
   }, [router]);
 
-  return <span className="text-xs text-muted">Live</span>;
+  return null;
 }
