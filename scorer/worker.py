@@ -5,6 +5,7 @@
 """
 
 import asyncio
+import ipaddress
 import json
 import os
 import signal
@@ -63,10 +64,20 @@ def is_relevant(article: dict, interests: list[str]) -> bool:
     return max(float(document @ embed(interest)) for interest in interests) >= RELEVANCE_THRESHOLD
 
 
+async def public_only(request: httpx.Request) -> None:
+    """Runs before every request, including each redirect. Links come from the open web, so refuse any
+    that point at a private address; otherwise a link could make the scorer read an internal page."""
+    addresses = await asyncio.get_running_loop().getaddrinfo(request.url.host, request.url.port or 443)
+    if not all(ipaddress.ip_address(address[4][0]).is_global for address in addresses):
+        raise httpx.RequestError(f"refusing to read a private address: {request.url.host}", request=request)
+
+
 async def read_article(url: str) -> dict | None:
     """Returns the article's text, lead photo, description, and author, or None when the site blocks readers."""
     try:
-        async with httpx.AsyncClient(timeout=10, follow_redirects=True, headers={"user-agent": USER_AGENT}) as client:
+        async with httpx.AsyncClient(
+            timeout=10, follow_redirects=True, headers={"user-agent": USER_AGENT}, event_hooks={"request": [public_only]}
+        ) as client:
             response = await client.get(url)
             response.raise_for_status()
     except httpx.HTTPError:
