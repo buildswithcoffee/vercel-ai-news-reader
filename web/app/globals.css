@@ -1,12 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #111111;
-  --muted: #6b6b6b;
-  --line: #e8e8e8;
-  --surface: #f6f6f6;
-  --accent: #2563eb;
+  /* light-dark() picks the first color in light mode and the second in dark mode. */
+  color-scheme: light dark;
+  --background: light-dark(#ffffff, #0a0a0a);
+  --foreground: light-dark(#111111, #ededed);
+  --muted: light-dark(#6b6b6b, #9a9a9a);
+  --line: light-dark(#e8e8e8, #232323);
+  --surface: light-dark(#f6f6f6, #151515);
+  --accent: light-dark(#2563eb, #3b82f6);
+}
+
+/* Without a choice, follow the system. A choice from the theme switch pins one. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -18,17 +28,6 @@
   --color-accent: var(--accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --muted: #9a9a9a;
-    --line: #232323;
-    --surface: #151515;
-    --accent: #3b82f6;
-  }
 }
 
 body {
