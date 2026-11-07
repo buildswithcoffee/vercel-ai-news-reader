@@ -3,26 +3,30 @@ import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.DATABASE_URL!);
 
+export type Profile = { about: string; topics: string[] };
+
 export type FeedItem = {
   id: string;
   url: string;
   title: string;
   source: string;
   published_at: string;
-  score: number;
-  why: string;
+  score: number | null; // null until the scorer has judged it
+  why: string | null;
 };
 
-export async function getInterests(): Promise<string[]> {
-  const rows = await sql`select topic from interests order by topic`;
-  return rows.map((row) => row.topic);
+export async function getProfile(): Promise<Profile | null> {
+  const [row] = await sql`select about, topics from profile`;
+  return (row as Profile) ?? null;
 }
 
-export async function saveInterests(topics: string[]) {
+export async function saveProfile({ about, topics }: Profile) {
   await sql.transaction([
-    sql`delete from interests`,
-    sql`insert into interests (topic) select unnest(${topics}::text[])`,
-    // Scores were written for the old interests, so they no longer apply.
+    sql`
+      insert into profile (about, topics) values (${about}, ${topics})
+      on conflict (id) do update set about = excluded.about, topics = excluded.topics
+    `,
+    // Scores were written for your old profile, so they no longer apply.
     sql`delete from scores`,
   ]);
 }
@@ -30,8 +34,8 @@ export async function saveInterests(topics: string[]) {
 export async function getFeed(): Promise<FeedItem[]> {
   const rows = await sql`
     select a.id, a.url, a.title, a.source, a.published_at, s.score, s.why
-    from scores s
-    join articles a on a.id = s.article_id
+    from articles a
+    left join scores s on s.article_id = a.id
     order by a.published_at desc
     limit 50
   `;

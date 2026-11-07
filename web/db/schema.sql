@@ -1,7 +1,9 @@
 -- Runs on every build (scripts/migrate.mjs), so every statement must be safe to repeat.
 
-create table if not exists interests (
-  topic text primary key
+create table if not exists profile (
+  id     boolean primary key default true check (id),  -- a single row: each deployment has one reader
+  about  text not null,                                -- what you care about, in your own words
+  topics text[] not null default '{}'
 );
 
 create table if not exists articles (

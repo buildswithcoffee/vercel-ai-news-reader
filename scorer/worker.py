@@ -43,7 +43,8 @@ SCORE_SCHEMA = {
 }
 
 PROMPT = """You help a reader decide which tech news is worth their time.
-Their interests: {interests}
+What they care about, in their words: {about}
+Topics they follow: {topics}
 Headline: {title} ({source})
 Article (may be cut short): {text}
 
@@ -73,13 +74,16 @@ async def read_article(url: str) -> str:
     return (trafilatura.extract(response.text) or "")[:ARTICLE_CHARS]
 
 
-async def judge(article: dict, interests: list[str]) -> dict:
+async def judge(article: dict, profile: dict) -> dict:
     # Daemons receive a fresh OIDC token in this file every few minutes, so read it per call.
     token = Path(os.environ["VERCEL_OIDC_TOKEN_FILE"]).read_text().strip()
     client = AsyncOpenAI(api_key=token, base_url="https://ai-gateway.vercel.sh/v1")
     response = await client.chat.completions.create(
         model=LLM,
-        messages=[{"role": "user", "content": PROMPT.format(interests=", ".join(interests), **article)}],
+        messages=[{
+            "role": "user",
+            "content": PROMPT.format(about=profile["about"], topics=", ".join(profile["topics"]) or "none", **article),
+        }],
         response_format={"type": "json_schema", "json_schema": {"name": "score", "schema": SCORE_SCHEMA}},
     )
     return json.loads(response.choices[0].message.content)
@@ -96,12 +100,14 @@ async def fetch_all(conn: psycopg.AsyncConnection, query: str, *params) -> list[
 
 
 async def score(conn: psycopg.AsyncConnection, articles: list[dict]) -> None:
-    interests = [row["topic"] for row in await fetch_all(conn, "select topic from interests")]
-    if not interests:
-        return  # nothing to score against until you pick interests
+    profile = next(iter(await fetch_all(conn, "select about, topics from profile")), None)
+    if not profile:
+        return  # nothing to score against until you say what you care about
 
+    interests = [profile["about"], *profile["topics"]]
     relevant = [article for article in articles if is_relevant(article, interests)]
-    results = await asyncio.gather(*(judge(article, interests) for article in relevant))
+    print(f"[scorer] {len(relevant)} of {len(articles)} articles look relevant; asking the LLM to score them")
+    results = await asyncio.gather(*(judge(article, profile) for article in relevant))
     for article, result in zip(relevant, results):
         await conn.execute(
             """
@@ -142,6 +148,7 @@ async def scan() -> None:
 
 @subscribe(topic="rescore", consumer_group="scorer")
 async def on_rescore(message: dict[str, str]) -> None:
+    print("[scorer] your interests changed; rescoring recent articles")
     async with await connect() as conn:
         articles = await fetch_all(
             conn, "select id, title, source, text from articles where published_at > now() - interval '3 days'"
@@ -149,13 +156,7 @@ async def on_rescore(message: dict[str, str]) -> None:
         await score(conn, articles)
 
 
-async def main() -> None:
-    # Same region the api service sends to. ALL_DEPLOYMENTS keeps work flowing across redeploys.
-    queue = QueueClient(region="iad1", deployment=ALL_DEPLOYMENTS)
-    poller = asyncio.create_task(queue.poll_and_handle(on_rescore))
-
-    stop = asyncio.Event()
-    asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, stop.set)
+async def scan_until(stop: asyncio.Event) -> None:
     while not stop.is_set():
         try:
             await scan()
@@ -166,8 +167,20 @@ async def main() -> None:
         except TimeoutError:
             pass
 
-    # A rescore interrupted here was never acknowledged, so the queue redelivers it.
-    poller.cancel()
+
+async def main() -> None:
+    # Same region the api service sends to. ALL_DEPLOYMENTS keeps work flowing across redeploys.
+    queue = QueueClient(region="iad1", deployment=ALL_DEPLOYMENTS)
+    stop = asyncio.Event()
+    asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, stop.set)
+
+    # One task group: if the queue poller fails, the daemon exits with the error in its logs
+    # and Vercel restarts it, instead of the poller dying silently while scans carry on.
+    async with asyncio.TaskGroup() as tasks:
+        poller = tasks.create_task(queue.poll_and_handle(on_rescore))
+        await scan_until(stop)
+        # A rescore interrupted here was never acknowledged, so the queue redelivers it.
+        poller.cancel()
 
 
 if __name__ == "__main__":
