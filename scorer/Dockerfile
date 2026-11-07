@@ -8,5 +8,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 ENV FASTEMBED_CACHE_PATH=/models
 RUN python -c "from fastembed import TextEmbedding; TextEmbedding('BAAI/bge-small-en-v1.5')"
 
-COPY worker.py sources.py ./
+COPY worker.py sources.py articles.py ./
 CMD ["python", "-u", "worker.py"]

@@ -44,3 +44,31 @@ The API remains private behind its service binding. Queue sends use the shared
 partition read by the daemon; merge this fix instead of the queue-only fix in #2.
 Scheduled news ingestion is independent of profile changes and is not counted as
 part of the rescore quota.
+
+## Untrusted article destinations
+
+Article reads accept only HTTP(S) URLs without credentials. Every hop is resolved
+and all returned addresses must be public unicast; private, loopback, link-local,
+reserved, mapped, and IPv6 translation/tunneling destinations are rejected. The
+HTTP connection is made to a validated numeric IP, not to the hostname, so a
+second DNS answer cannot redirect the connection into the daemon's private network.
+The original Host header and HTTPS SNI/certificate name are preserved, with normal
+certificate verification enabled. Environment proxies, shared connections, and
+cookie forwarding are disabled for these reads. Redirects are handled explicitly,
+validated again, and limited to ten hops.
+
+A rejected or failed read returns no extracted text or metadata to the scan, so it
+cannot become an article excerpt. The original source-feed summary remains the
+fallback. This change does not audit or remove text already in the database; any
+suspected historical exposure requires a separate data review. Platform-level
+egress filtering remains useful defense in depth; this patch enforces the article
+reader's destination restrictions in code and does not change infrastructure.
+
+Run the focused, offline regression with the scorer's dependencies installed:
+
+```sh
+python scorer/check_article_fetch.py
+```
+
+It exercises the real HTTP transport against fake TCP peers, including DNS
+rebinding, redirects, TLS hostname/verification settings, and public extraction.
