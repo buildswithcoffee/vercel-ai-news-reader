@@ -76,7 +76,10 @@ async def judge(article: dict, profile: dict) -> dict:
         }],
         response_format={"type": "json_schema", "json_schema": {"name": "score", "schema": SCORE_SCHEMA}},
     )
-    return json.loads(response.choices[0].message.content)
+    choice = response.choices[0]
+    if choice.finish_reason == "length":
+        raise ValueError("the answer was cut off at max_tokens")
+    return json.loads(choice.message.content)
 
 
 def connect():
@@ -101,7 +104,11 @@ async def score(conn: psycopg.AsyncConnection, articles: list[dict], profile: di
     async def score_one(article: dict) -> None:
         # Shared with scheduled scans, so simultaneous scan/rescore tasks also stay bounded.
         async with llm_slots:
-            result = await judge(article, profile)
+            try:
+                result = await judge(article, profile)
+            except Exception as error:  # one bad answer shouldn't stop the rest of the batch
+                print(f"[scorer] couldn't score {article['title']}: {error!r}")
+                return
         await conn.execute(
             """
             insert into scores (article_id, score, why) values (%s, %s, %s)
