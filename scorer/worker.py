@@ -63,15 +63,23 @@ def is_relevant(article: dict, interests: list[str]) -> bool:
     return max(float(document @ embed(interest)) for interest in interests) >= RELEVANCE_THRESHOLD
 
 
-async def read_article(url: str) -> str:
-    """Returns the article's main text, or "" when the site blocks readers or has nothing to extract."""
+async def read_article(url: str) -> dict | None:
+    """Returns the article's text, lead photo, description, and author, or None when the site blocks readers."""
     try:
         async with httpx.AsyncClient(timeout=10, follow_redirects=True, headers={"user-agent": USER_AGENT}) as client:
             response = await client.get(url)
             response.raise_for_status()
     except httpx.HTTPError:
-        return ""
-    return (trafilatura.extract(response.text) or "")[:ARTICLE_CHARS]
+        return None
+    page = trafilatura.bare_extraction(response.text, with_metadata=True)
+    if not page or not page.text:
+        return None
+    return {
+        "text": page.text[:ARTICLE_CHARS],
+        "image": page.image if (page.image or "").startswith("https://") else None,  # the feed is served over HTTPS
+        "description": page.description,
+        "author": page.author,
+    }
 
 
 async def judge(article: dict, profile: dict) -> dict:
@@ -136,11 +144,14 @@ async def scan() -> None:
                 story.id, story.url, story.title, story.source, story.published_at, story.text,
             )
 
-        texts = await asyncio.gather(*(read_article(article["url"]) for article in new))
-        for article, text in zip(new, texts):
-            if text:  # otherwise keep the feed's excerpt
-                await conn.execute("update articles set text = %s where id = %s", (text, article["id"]))
-                article["text"] = text
+        pages = await asyncio.gather(*(read_article(article["url"]) for article in new))
+        for article, page in zip(new, pages):
+            if page:  # otherwise keep the feed's excerpt
+                await conn.execute(
+                    "update articles set text = %s, image = %s, description = %s, author = %s where id = %s",
+                    (page["text"], page["image"], page["description"], page["author"], article["id"]),
+                )
+                article["text"] = page["text"]
 
         print(f"[scorer] scanned {len(stories)} stories, {len(new)} new")
         await score(conn, new)
