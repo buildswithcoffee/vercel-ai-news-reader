@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ClerkProvider, Show, UserButton } from "@clerk/nextjs";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,25 +25,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <ClerkProvider>
-          <header className="border-b border-line">
-            <div className="mx-auto flex h-14 w-full max-w-3xl items-center gap-6 px-4">
-              <Link href="/" className="font-semibold tracking-tight">
-                Signal
-              </Link>
-              <Show when="signed-in">
-                <nav className="flex gap-4 text-sm text-muted">
-                  <Link href="/feed" className="hover:text-foreground">Feed</Link>
-                  <Link href="/interests" className="hover:text-foreground">Interests</Link>
-                </nav>
-                <div className="ml-auto">
-                  <UserButton />
-                </div>
-              </Show>
-            </div>
-          </header>
-          <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">{children}</main>
-        </ClerkProvider>
+        <header className="border-b border-line">
+          <div className="mx-auto flex h-14 w-full max-w-3xl items-center gap-6 px-4">
+            <Link href="/" className="font-semibold tracking-tight">
+              Signal
+            </Link>
+            <nav className="flex gap-4 text-sm text-muted">
+              <Link href="/" className="hover:text-foreground">Feed</Link>
+              <Link href="/interests" className="hover:text-foreground">Interests</Link>
+            </nav>
+          </div>
+        </header>
+        <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">{children}</main>
       </body>
     </html>
   );

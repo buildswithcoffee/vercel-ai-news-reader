@@ -1,25 +1,65 @@
-import { auth } from "@clerk/nextjs/server";
-import { SignInButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
+import Link from "next/link";
+import { getFeed, getInterests, type FeedItem } from "@/lib/db";
+import { timeAgo } from "@/lib/time";
+import { AutoRefresh } from "./auto-refresh";
 
-export default async function Home() {
-  const { userId } = await auth();
-  if (userId) redirect("/feed");
+export default async function FeedPage() {
+  await connection(); // render on every request; the feed changes as the scorer writes
+  const interests = await getInterests();
+  if (interests.length === 0) redirect("/interests");
+
+  const feed = await getFeed();
 
   return (
-    <section className="py-16">
-      <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-        The tech and AI news that matters to you, and why.
-      </h1>
-      <p className="mt-5 max-w-xl text-lg text-muted">
-        Signal reads hundreds of stories a day, scores each one against what you care about, and
-        tells you in one line why it matters to you.
-      </p>
-      <SignInButton mode="modal" forceRedirectUrl="/interests">
-        <button className="mt-8 rounded-md bg-accent px-5 py-2.5 font-medium text-white hover:opacity-90">
-          Get your briefing
-        </button>
-      </SignInButton>
+    <section>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Your briefing</h1>
+          <p className="mt-1 text-sm text-muted">
+            Tuned for {interests.join(", ")}.{" "}
+            <Link href="/interests" className="underline underline-offset-2 hover:text-foreground">
+              Edit
+            </Link>
+          </p>
+        </div>
+        <AutoRefresh />
+      </div>
+
+      {feed.length === 0 ? (
+        <p className="mt-10 rounded-xl border border-dashed border-line p-10 text-center text-muted">
+          Scanning for your first briefing…
+        </p>
+      ) : (
+        <ol className="mt-8 space-y-4">
+          {feed.map((item) => (
+            <Story key={item.id} item={item} />
+          ))}
+        </ol>
+      )}
     </section>
+  );
+}
+
+function Story({ item }: { item: FeedItem }) {
+  return (
+    <li className="flex gap-4 rounded-xl border border-line p-5">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface font-semibold">
+        {item.score}
+      </span>
+      <div className="min-w-0">
+        <a href={item.url} target="_blank" rel="noreferrer" className="font-medium hover:underline">
+          {item.title}
+        </a>
+        <p className="mt-1 text-xs text-muted">
+          {item.source} · {timeAgo(item.published_at)}
+        </p>
+        <p className="mt-3 rounded-md bg-surface px-3 py-2 text-sm">
+          <span className="font-medium text-accent">Why it matters to you: </span>
+          {item.why}
+        </p>
+      </div>
+    </li>
   );
 }

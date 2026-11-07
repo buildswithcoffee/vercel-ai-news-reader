@@ -1,4 +1,5 @@
 fastembed
+feedparser
 httpx
 lxml_html_clean  # trafilatura needs it; lxml no longer bundles it
 openai

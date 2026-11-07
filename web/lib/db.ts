@@ -13,27 +13,26 @@ export type FeedItem = {
   why: string;
 };
 
-export async function getInterests(userId: string): Promise<string[]> {
-  const rows = await sql`select interests from users where id = ${userId}`;
-  return rows[0]?.interests ?? [];
+export async function getInterests(): Promise<string[]> {
+  const rows = await sql`select topic from interests order by topic`;
+  return rows.map((row) => row.topic);
 }
 
-export async function saveInterests(userId: string, interests: string[]) {
-  await sql`
-    insert into users (id, interests) values (${userId}, ${interests})
-    on conflict (id) do update set interests = excluded.interests
-  `;
-  // Scores were written for the old interests, so they no longer apply.
-  await sql`delete from user_story_scores where user_id = ${userId}`;
+export async function saveInterests(topics: string[]) {
+  await sql.transaction([
+    sql`delete from interests`,
+    sql`insert into interests (topic) select unnest(${topics}::text[])`,
+    // Scores were written for the old interests, so they no longer apply.
+    sql`delete from scores`,
+  ]);
 }
 
-export async function getFeed(userId: string): Promise<FeedItem[]> {
+export async function getFeed(): Promise<FeedItem[]> {
   const rows = await sql`
-    select s.id, s.url, s.title, s.source, s.published_at, u.score, u.why
-    from user_story_scores u
-    join stories s on s.id = u.story_id
-    where u.user_id = ${userId}
-    order by u.score desc
+    select a.id, a.url, a.title, a.source, a.published_at, s.score, s.why
+    from scores s
+    join articles a on a.id = s.article_id
+    order by a.published_at desc
     limit 50
   `;
   return rows as FeedItem[];

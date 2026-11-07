@@ -1,5 +1,5 @@
-import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { getInterests, saveInterests } from "@/lib/db";
 import { requestRescore } from "@/lib/backend";
 
@@ -18,15 +18,14 @@ const TOPICS = [
 
 async function save(formData: FormData) {
   "use server";
-  const { userId } = await auth.protect();
-  await saveInterests(userId, formData.getAll("interest").map(String));
-  await requestRescore(userId);
-  redirect("/feed");
+  await saveInterests(formData.getAll("interest").map(String));
+  await requestRescore();
+  redirect("/");
 }
 
 export default async function InterestsPage() {
-  const { userId } = await auth.protect();
-  const current = await getInterests(userId);
+  await connection(); // read your saved interests at request time, not at build
+  const current = await getInterests();
 
   return (
     <section>

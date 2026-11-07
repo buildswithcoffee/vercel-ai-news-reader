@@ -12,11 +12,7 @@
       "entrypoint": "main:app"
     }
   },
-  "rewrites": [
-    { "source": "/api/ingest", "destination": { "service": "api" } },
-    { "source": "/(.*)", "destination": { "service": "web" } }
-  ],
-  "crons": [{ "path": "/api/ingest", "schedule": "*/15 * * * *" }],
+  "rewrites": [{ "source": "/(.*)", "destination": { "service": "web" } }],
   "daemons": {
     "scorer": {
       "root": "scorer/",

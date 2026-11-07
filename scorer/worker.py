@@ -1,7 +1,7 @@
-"""Scores stories for users. Runs continuously as a Vercel Daemon, pulling work from two queues:
+"""Signal's scorer. Runs continuously as a Vercel Daemon:
 
-- new-stories:  a story was just ingested, so read the article and score it for every user
-- rescore-user: a user changed their interests, so score recent stories for them
+- Every 15 minutes it scans the news sources, reads each new article, and scores it.
+- When you change your interests, the web app queues a "rescore" and it rescores recent articles.
 """
 
 import asyncio
@@ -20,8 +20,11 @@ from openai import AsyncOpenAI
 from psycopg.rows import dict_row
 from vercel.queue import ALL_DEPLOYMENTS, QueueClient, subscribe
 
-# A cheap local embedding model filters stories before any LLM call. Only stories whose headline
-# and opening are at least this similar to one of a user's interests get scored.
+from sources import fetch_stories
+
+SCAN_EVERY_SECONDS = 15 * 60
+# A cheap local embedding model filters articles before any LLM call. Only articles whose headline
+# and opening are at least this similar to one of your interests get scored.
 RELEVANCE_THRESHOLD = 0.6
 LLM = "anthropic/claude-haiku-5.5"
 ARTICLE_CHARS = 6000  # enough to judge a story; keeps prompts small
@@ -54,8 +57,8 @@ def embed(text: str) -> np.ndarray:
     return vector / np.linalg.norm(vector)
 
 
-def is_relevant(story: dict, interests: list[str]) -> bool:
-    document = embed(f"{story['title']}. {story['text'][:500]}")
+def is_relevant(article: dict, interests: list[str]) -> bool:
+    document = embed(f"{article['title']}. {article['text'][:500]}")
     return max(float(document @ embed(interest)) for interest in interests) >= RELEVANCE_THRESHOLD
 
 
@@ -70,30 +73,16 @@ async def read_article(url: str) -> str:
     return (trafilatura.extract(response.text) or "")[:ARTICLE_CHARS]
 
 
-async def judge(story: dict, interests: list[str]) -> dict:
+async def judge(article: dict, interests: list[str]) -> dict:
     # Daemons receive a fresh OIDC token in this file every few minutes, so read it per call.
     token = Path(os.environ["VERCEL_OIDC_TOKEN_FILE"]).read_text().strip()
     client = AsyncOpenAI(api_key=token, base_url="https://ai-gateway.vercel.sh/v1")
     response = await client.chat.completions.create(
         model=LLM,
-        messages=[{"role": "user", "content": PROMPT.format(interests=", ".join(interests), **story)}],
+        messages=[{"role": "user", "content": PROMPT.format(interests=", ".join(interests), **article)}],
         response_format={"type": "json_schema", "json_schema": {"name": "score", "schema": SCORE_SCHEMA}},
     )
     return json.loads(response.choices[0].message.content)
-
-
-async def score_stories(conn: psycopg.AsyncConnection, user: dict, stories: list[dict]) -> None:
-    relevant = [story for story in stories if is_relevant(story, user["interests"])]
-    results = await asyncio.gather(*(judge(story, user["interests"]) for story in relevant))
-    for story, result in zip(relevant, results):
-        await conn.execute(
-            """
-            insert into user_story_scores (user_id, story_id, score, why) values (%s, %s, %s, %s)
-            on conflict (user_id, story_id) do update set score = excluded.score, why = excluded.why
-            """,
-            (user["id"], story["id"], result["score"], result["why"]),
-        )
-        print(f"[scorer] {result['score']:>3}  {story['title']}")
 
 
 def connect():
@@ -106,46 +95,79 @@ async def fetch_all(conn: psycopg.AsyncConnection, query: str, *params) -> list[
     return await cursor.fetchall()
 
 
-@subscribe(topic="new-stories", consumer_group="scorer")
-async def on_new_story(message: dict) -> None:
-    async with await connect() as conn:
-        [story] = await fetch_all(
-            conn, "select id, url, title, source, text from stories where id = %s", message["story_id"]
+async def score(conn: psycopg.AsyncConnection, articles: list[dict]) -> None:
+    interests = [row["topic"] for row in await fetch_all(conn, "select topic from interests")]
+    if not interests:
+        return  # nothing to score against until you pick interests
+
+    relevant = [article for article in articles if is_relevant(article, interests)]
+    results = await asyncio.gather(*(judge(article, interests) for article in relevant))
+    for article, result in zip(relevant, results):
+        await conn.execute(
+            """
+            insert into scores (article_id, score, why) values (%s, %s, %s)
+            on conflict (article_id) do update set score = excluded.score, why = excluded.why
+            """,
+            (article["id"], result["score"], result["why"]),
         )
-        # Read the article once and keep it, so every user's score (and any rescore) reuses it.
-        # If the site blocks us, the feed's excerpt saved at ingest stays in place.
-        if article := await read_article(story["url"]):
-            await conn.execute("update stories set text = %s where id = %s", (article, story["id"]))
-            story["text"] = article
-
-        users = await fetch_all(conn, "select id, interests from users where interests <> '{}'")
-        for user in users:
-            await score_stories(conn, user, [story])
+        print(f"[scorer] {result['score']:>3}  {article['title']}")
 
 
-@subscribe(topic="rescore-user", consumer_group="scorer")
-async def on_rescore_user(message: dict) -> None:
+async def scan() -> None:
+    stories = await fetch_stories()
     async with await connect() as conn:
-        [user] = await fetch_all(conn, "select id, interests from users where id = %s", message["user_id"])
-        stories = await fetch_all(
-            conn, "select id, title, source, text from stories where published_at > now() - interval '3 days'"
+        new = []
+        for story in stories:
+            # Inserting claims the article, so even with several daemon instances each one is read once.
+            new += await fetch_all(
+                conn,
+                """
+                insert into articles (id, url, title, source, published_at, text)
+                values (%s, %s, %s, %s, %s, %s)
+                on conflict do nothing
+                returning id, url, title, source, text
+                """,
+                story.id, story.url, story.title, story.source, story.published_at, story.text,
+            )
+
+        texts = await asyncio.gather(*(read_article(article["url"]) for article in new))
+        for article, text in zip(new, texts):
+            if text:  # otherwise keep the feed's excerpt
+                await conn.execute("update articles set text = %s where id = %s", (text, article["id"]))
+                article["text"] = text
+
+        print(f"[scorer] scanned {len(stories)} stories, {len(new)} new")
+        await score(conn, new)
+
+
+@subscribe(topic="rescore", consumer_group="scorer")
+async def on_rescore(message: dict[str, str]) -> None:
+    async with await connect() as conn:
+        articles = await fetch_all(
+            conn, "select id, title, source, text from articles where published_at > now() - interval '3 days'"
         )
-        await score_stories(conn, user, stories)
+        await score(conn, articles)
 
 
 async def main() -> None:
     # Same region the api service sends to. ALL_DEPLOYMENTS keeps work flowing across redeploys.
     queue = QueueClient(region="iad1", deployment=ALL_DEPLOYMENTS)
-    pollers = [asyncio.create_task(queue.poll_and_handle(h)) for h in (on_new_story, on_rescore_user)]
-    print("[scorer] polling for work")
+    poller = asyncio.create_task(queue.poll_and_handle(on_rescore))
 
     stop = asyncio.Event()
     asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, stop.set)
-    await stop.wait()
+    while not stop.is_set():
+        try:
+            await scan()
+        except Exception as error:  # a source or the network failed; try again next round
+            print(f"[scorer] scan failed: {error!r}")
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=SCAN_EVERY_SECONDS)
+        except TimeoutError:
+            pass
 
-    # A message interrupted here was never acknowledged, so the queue redelivers it.
-    for poller in pollers:
-        poller.cancel()
+    # A rescore interrupted here was never acknowledged, so the queue redelivers it.
+    poller.cancel()
 
 
 if __name__ == "__main__":
