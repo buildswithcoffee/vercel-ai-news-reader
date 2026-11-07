@@ -37,6 +37,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/" className="hover:text-foreground">Feed</Link>
               <Link href="/interests" className="hover:text-foreground">Interests</Link>
               <Link href="/how-it-works" className="hover:text-foreground">How it works</Link>
+              <Link href="/ask" className="hover:text-foreground">Ask</Link>
             </nav>
             <div className="ml-auto flex items-center gap-2">
               <XraySwitch />

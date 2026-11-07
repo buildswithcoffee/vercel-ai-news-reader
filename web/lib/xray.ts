@@ -46,6 +46,12 @@ export const parts = {
     why: "One endpoint for hundreds of models, with spend tracking, fallbacks, and no provider keys to rotate.",
     href: "https://vercel.com/docs/ai-gateway",
   },
+  agent: {
+    name: "An eve agent",
+    what: "The guide on the Ask page is an eve agent: instructions, one tool that reads Vercel's docs, and a chat channel, all files in agent/. It deploys as its own service in this project.",
+    why: "Conversations are durable and survive restarts, every run is traced in Agent Runs, and it ships with the same git push.",
+    href: "https://eve.dev/docs",
+  },
   previews: {
     name: "Git and preview deployments",
     what: "Every pull request to this repo gets its own preview URL, with its own database branch, where the team can comment right on the page.",
