@@ -15,6 +15,11 @@ export type FeedItem = {
   published_at: string;
   score: number | null; // null until the scorer has judged it
   why: string | null;
+  // The preview you see when you expand a story. Null when the site blocks readers.
+  image: string | null;
+  description: string | null;
+  author: string | null;
+  excerpt: string; // the article's opening; the rest stays at the source
 };
 
 export async function getProfile(): Promise<Profile | null> {
@@ -59,7 +64,8 @@ export async function saveProfile({ about, topics }: Profile) {
 
 export async function getFeed(): Promise<FeedItem[]> {
   const rows = await sql`
-    select a.id, a.url, a.title, a.source, a.published_at, s.score, s.why
+    select a.id, a.url, a.title, a.source, a.published_at, s.score, s.why,
+      a.image, a.description, a.author, left(a.text, 600) as excerpt
     from articles a
     left join scores s on s.article_id = a.id
     order by a.published_at desc

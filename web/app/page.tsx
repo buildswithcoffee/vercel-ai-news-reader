@@ -42,30 +42,57 @@ export default async function FeedPage() {
   );
 }
 
+// Each story expands in place, like a link preview: the photo, the publisher's summary, and the
+// opening lines. The full article stays at the source, one click away.
 function Story({ item }: { item: FeedItem }) {
   return (
-    <li className="flex gap-4 rounded-xl border border-line p-5">
-      <span
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface font-semibold ${
-          item.score === null ? "text-muted" : ""
-        }`}
-      >
-        {item.score ?? "–"}
-      </span>
-      <div className="min-w-0">
-        <a href={item.url} target="_blank" rel="noreferrer" className="font-medium hover:underline">
-          {item.title}
-        </a>
-        <p className="mt-1 text-xs text-muted">
-          {item.source} · {timeAgo(item.published_at)}
-        </p>
-        {item.why && (
-          <p className="mt-3 rounded-md bg-surface px-3 py-2 text-sm">
-            <span className="font-medium text-accent">Why it matters to you: </span>
-            {item.why}
+    <li>
+      <details name="story" className="rounded-xl border border-line">
+        <summary className="flex cursor-pointer list-none gap-4 p-5 hover:bg-surface/50 [&::-webkit-details-marker]:hidden">
+          <span
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface font-semibold ${
+              item.score === null ? "text-muted" : ""
+            }`}
+          >
+            {item.score ?? "–"}
+          </span>
+          <div className="min-w-0">
+            <h2 className="font-medium">{item.title}</h2>
+            <p className="mt-1 text-xs text-muted">
+              {item.source} · {timeAgo(item.published_at)}
+            </p>
+            {item.why && (
+              <p className="mt-3 rounded-md bg-surface px-3 py-2 text-sm">
+                <span className="font-medium text-accent">Why it matters to you: </span>
+                {item.why}
+              </p>
+            )}
+          </div>
+        </summary>
+
+        <div className="space-y-4 px-5 pb-5 sm:pl-20">
+          {item.image && (
+            // Photos load straight from the publisher. next/image would have to allow every host,
+            // which would turn the image optimizer into an open proxy.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={item.image}
+              alt=""
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              className="aspect-video w-full rounded-lg bg-surface object-cover"
+            />
+          )}
+          {item.description && <p className="text-lg leading-snug">{item.description}</p>}
+          {item.excerpt && <p className="line-clamp-6 whitespace-pre-line text-sm text-muted">{item.excerpt}</p>}
+          <p className="text-sm">
+            <a href={item.url} target="_blank" rel="noreferrer" className="font-medium text-accent hover:underline">
+              Read the full story at {item.source} →
+            </a>
+            {item.author && <span className="text-muted"> · By {item.author}</span>}
           </p>
-        )}
-      </div>
+        </div>
+      </details>
     </li>
   );
 }

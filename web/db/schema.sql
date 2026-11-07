@@ -15,6 +15,11 @@ create table if not exists articles (
   text         text not null  -- the full article, or the feed's excerpt if the site blocks readers
 );
 
+-- Shown when you expand a story. Read from the article page along with its text.
+alter table articles add column if not exists image       text;  -- the lead photo's URL
+alter table articles add column if not exists description text;  -- the publisher's one-line summary
+alter table articles add column if not exists author      text;
+
 create table if not exists scores (
   article_id text primary key references articles (id) on delete cascade,
   score      integer not null,  -- 0 to 100
