@@ -36,6 +36,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             <nav className="flex gap-4 text-sm text-muted">
               <Link href="/" className="hover:text-foreground">Feed</Link>
               <Link href="/interests" className="hover:text-foreground">Interests</Link>
+              <Link href="/sources" className="hover:text-foreground">Sources</Link>
               <Link href="/how-it-works" className="hover:text-foreground">How it works</Link>
               <Link href="/ask" className="hover:text-foreground">Ask</Link>
             </nav>

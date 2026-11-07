@@ -7,6 +7,8 @@ const sql = neon(process.env.DATABASE_URL!);
 
 export type Profile = { about: string; topics: string[] };
 
+export type Source = { name: string; url: string; enabled: boolean };
+
 export type FeedItem = {
   id: string;
   url: string;
@@ -62,12 +64,24 @@ export async function saveProfile({ about, topics }: Profile) {
   return Boolean(row.changed);
 }
 
+export async function getSources(): Promise<Source[]> {
+  return (await sql`select name, url, enabled from feeds order by enabled desc, name`) as Source[];
+}
+
+export async function setSourceEnabled(name: string, enabled: boolean) {
+  if (!isProfileOwner((await headers()).get("authorization"))) {
+    throw new Error("Unauthorized");
+  }
+  await sql`update feeds set enabled = ${enabled} where name = ${name}`;
+}
+
 export async function getFeed(): Promise<FeedItem[]> {
   const rows = await sql`
     select a.id, a.url, a.title, a.source, a.published_at, s.score, s.why,
       a.image, a.description, a.author, left(a.text, 600) as excerpt
     from articles a
     left join scores s on s.article_id = a.id
+    where a.source in (select name from feeds where enabled)
     order by a.published_at desc
     limit 50
   `;

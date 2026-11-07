@@ -117,8 +117,8 @@ async def score(conn: psycopg.AsyncConnection, articles: list[dict], profile: di
 
 
 async def scan() -> None:
-    stories = await fetch_stories()
     async with await connect() as conn:
+        stories = await fetch_stories(await fetch_all(conn, "select name, url from feeds where enabled"))
         new = []
         for story in stories:
             # Inserting claims the article, so even with several daemon instances each one is read once.
@@ -173,6 +173,7 @@ async def rescore_pending() -> None:
             conn,
             """select id, title, source, text from articles
                where published_at > now() - interval '3 days'
+                 and source in (select name from feeds where enabled)
                order by published_at desc, id limit %s""",
             RESCORE_BATCH_SIZE,
         )

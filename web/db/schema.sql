@@ -37,3 +37,37 @@ create table if not exists rescore_state (
   started_at timestamptz
 );
 insert into rescore_state (id) values (true) on conflict do nothing;
+
+-- Where articles come from. Turn a feed off on the Sources page and the scorer stops reading it
+-- and its stories leave your feed. New rows here show up on the next deploy; existing ones keep
+-- whatever you chose.
+create table if not exists feeds (
+  name    text primary key,  -- shown on each story, and matched against articles.source
+  url     text not null,     -- an RSS or Atom feed; Hacker News is read through its API
+  enabled boolean not null
+);
+insert into feeds (name, url, enabled) values
+  ('Hacker News',            'https://news.ycombinator.com/',                                   true),
+  ('The Verge',              'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml', true),
+  ('TechCrunch',             'https://techcrunch.com/category/artificial-intelligence/feed/',   true),
+  ('Ars Technica',           'https://feeds.arstechnica.com/arstechnica/technology-lab',        true),
+  ('Google AI',              'https://blog.google/technology/ai/rss/',                          true),
+  ('Vercel',                 'https://vercel.com/atom',                                         true),
+  ('Hugging Face',           'https://huggingface.co/blog/feed.xml',                            true),
+  ('OpenAI',                 'https://openai.com/news/rss.xml',                                 true),
+  ('AWS re:Invent',          'https://aws.amazon.com/blogs/aws/category/events/reinvent/feed/', true),
+  ('Google DeepMind',        'https://deepmind.google/blog/rss.xml',                            false),
+  ('NVIDIA',                 'https://blogs.nvidia.com/feed/',                                  false),
+  ('GitHub',                 'https://github.blog/feed/',                                       false),
+  ('Cloudflare',             'https://blog.cloudflare.com/rss/',                                false),
+  ('Next.js',                'https://nextjs.org/feed.xml',                                     false),
+  ('AWS Machine Learning',   'https://aws.amazon.com/blogs/machine-learning/feed/',             false),
+  ('Apple Machine Learning', 'https://machinelearning.apple.com/rss.xml',                       false),
+  ('Meta Engineering',       'https://engineering.fb.com/feed/',                                false),
+  ('Databricks',             'https://www.databricks.com/feed',                                 false),
+  ('Together AI',            'https://www.together.ai/blog/rss.xml',                            false),
+  ('Simon Willison',         'https://simonwillison.net/atom/everything/',                      false),
+  ('Latent Space',           'https://www.latent.space/feed',                                   false),
+  ('Interconnects',          'https://www.interconnects.ai/feed',                               false),
+  ('Stratechery',            'https://stratechery.com/feed/',                                   false)
+on conflict (name) do nothing;
