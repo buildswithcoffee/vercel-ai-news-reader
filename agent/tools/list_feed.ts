@@ -16,7 +16,6 @@ export default defineTool({
       order by s.score desc
       limit 20
     `;
-    const [profile] = await sql`select about from profile`;
-    return { reader_interests: profile?.about ?? null, stories };
+    return { stories };
   },
 });
