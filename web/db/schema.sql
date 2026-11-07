@@ -20,3 +20,15 @@ create table if not exists scores (
   score      integer not null,  -- 0 to 100
   why        text not null      -- why this article matters to you
 );
+
+-- Additive migration for existing installations. Versions coalesce queue redelivery;
+-- timestamps enforce a shared quota rather than a per-process/IP limit.
+alter table profile add column if not exists version bigint not null default 1;
+alter table profile add column if not exists updated_at timestamptz not null default now();
+
+create table if not exists rescore_state (
+  id boolean primary key default true check (id),
+  version bigint not null default 0,
+  started_at timestamptz
+);
+insert into rescore_state (id) values (true) on conflict do nothing;
