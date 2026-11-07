@@ -5,6 +5,7 @@ import { withEve } from "eve/vercel";
 export default await withEve({
   services: {
     web: {
+      framework: "nextjs", // stated explicitly, since the project now holds an eve agent too
       root: "web/",
       bindings: [{ type: "service", service: "api", format: "url", env: "API_INTERNAL_URL" }],
     },
