@@ -13,4 +13,5 @@ queue = QueueClient(region="iad1")
 async def rescore():
     """Your interests changed, so ask the scorer daemon to rescore recent articles."""
     await queue.send("rescore", {})
+    print("[api] queued a rescore")
     return {"queued": True}
