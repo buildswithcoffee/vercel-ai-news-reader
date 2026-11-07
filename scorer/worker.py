@@ -67,7 +67,10 @@ def is_relevant(article: dict, interests: list[str]) -> bool:
 async def public_only(request: httpx.Request) -> None:
     """Runs before every request, including each redirect. Links come from the open web, so refuse any
     that point at a private address; otherwise a link could make the scorer read an internal page."""
-    addresses = await asyncio.get_running_loop().getaddrinfo(request.url.host, request.url.port or 443)
+    try:
+        addresses = await asyncio.get_running_loop().getaddrinfo(request.url.host, request.url.port or 443)
+    except OSError as error:  # the host doesn't resolve; skip this article like any other failed read
+        raise httpx.ConnectError(f"can't resolve {request.url.host}", request=request) from error
     if not all(ipaddress.ip_address(address[4][0]).is_global for address in addresses):
         raise httpx.RequestError(f"refusing to read a private address: {request.url.host}", request=request)
 
