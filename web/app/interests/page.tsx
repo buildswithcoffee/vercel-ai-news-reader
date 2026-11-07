@@ -18,11 +18,11 @@ const TOPICS = [
 
 async function save(formData: FormData) {
   "use server";
-  await saveProfile({
+  const changed = await saveProfile({
     about: String(formData.get("about")).trim(),
     topics: formData.getAll("topic").map(String),
   });
-  await requestRescore();
+  if (changed) await requestRescore();
   redirect("/");
 }
 

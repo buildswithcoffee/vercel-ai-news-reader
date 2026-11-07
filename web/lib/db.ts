@@ -1,4 +1,6 @@
 import "server-only";
+import { headers } from "next/headers";
+import { isProfileOwner } from "./profile-owner";
 import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.DATABASE_URL!);
@@ -21,14 +23,38 @@ export async function getProfile(): Promise<Profile | null> {
 }
 
 export async function saveProfile({ about, topics }: Profile) {
-  await sql.transaction([
-    sql`
+  // Server Actions are public endpoints; never rely on the page's proxy alone.
+  if (!isProfileOwner((await headers()).get("authorization"))) {
+    throw new Error("Unauthorized");
+  }
+  about = about.trim();
+  topics = [...new Set(topics)].sort();
+  if (!about || about.length > 2000 || topics.length > 10 ||
+      topics.some((topic) => !topic || topic.length > 100)) {
+    throw new Error("Invalid profile");
+  }
+
+  // The row lock in ON CONFLICT makes admission atomic across web instances.
+  // Delete old scores only when a changed profile is actually admitted.
+  const [row] = await sql`
+    with changed as (
       insert into profile (about, topics) values (${about}, ${topics})
-      on conflict (id) do update set about = excluded.about, topics = excluded.topics
-    `,
-    // Scores were written for your old profile, so they no longer apply.
-    sql`delete from scores`,
-  ]);
+      on conflict (id) do update set
+        about = excluded.about, topics = excluded.topics,
+        version = profile.version + 1, updated_at = now()
+      where (profile.about, profile.topics) is distinct from (excluded.about, excluded.topics)
+        and profile.updated_at <= now() - interval '15 minutes'
+      returning version
+    ), cleared as (
+      delete from scores where exists (select 1 from changed)
+    )
+    select exists (select 1 from changed) as changed,
+      exists (select 1 from profile where about = ${about} and topics = ${topics}) as unchanged
+  `;
+  if (!row.changed && !row.unchanged) {
+    throw new Error("Profile changes are limited to once every 15 minutes. Please try again later.");
+  }
+  return Boolean(row.changed);
 }
 
 export async function getFeed(): Promise<FeedItem[]> {
