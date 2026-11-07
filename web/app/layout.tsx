@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Guide } from "./guide";
 import { ThemeSwitch, getTheme } from "./theme";
 import "./globals.css";
 
@@ -27,6 +28,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <Guide>
         <header className="border-b border-line">
           <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
             <Link href="/" className="font-semibold tracking-tight">
@@ -37,7 +39,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/interests" className="hover:text-foreground">Interests</Link>
               <Link href="/sources" className="hover:text-foreground">Sources</Link>
               <Link href="/how-it-works" className="hover:text-foreground">How it works</Link>
-              <Link href="/ask" className="hover:text-foreground">Ask</Link>
             </nav>
             <div className="ml-auto flex items-center gap-2">
               <Link
@@ -51,6 +52,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
         <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">{children}</main>
+        </Guide>
       </body>
     </html>
   );

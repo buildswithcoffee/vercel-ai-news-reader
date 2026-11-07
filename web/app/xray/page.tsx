@@ -97,12 +97,12 @@ function GuideSlide() {
       left={
         <>
           <Note n={1} part="agent">
-            The guide is an eve agent. Its instructions, its one tool, and its chat channel are files in agent/,
+            Ask Signal is an eve agent. Its instructions, its tools, and its chat channel are files in agent/,
             deployed as its own service in this project.
           </Note>
           <Note n={2} part="sandbox">
-            Its one tool reads Vercel&apos;s docs. Give an eve agent tools that run code, and on Vercel each
-            conversation gets its own isolated sandbox.
+            Its tools only read: Vercel&apos;s docs and the stories in your feed. Give an eve agent tools that run
+            code, and on Vercel each conversation gets its own isolated sandbox.
           </Note>
           <Note n={3} part="gateway">
             Answers come from Claude Sonnet 5.5 through the same AI Gateway the scorer uses, with a spending cap on
@@ -118,7 +118,7 @@ function GuideSlide() {
       }
     >
       <Target n={1}>
-        <span className="font-semibold tracking-tight">Ask the guide</span>
+        <span className="font-semibold tracking-tight">Ask Signal</span>
       </Target>
       <Target n={4} region>
         <div className="mt-4 space-y-3 pb-1">
