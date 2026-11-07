@@ -5,22 +5,20 @@
 """
 
 import asyncio
-import ipaddress
 import json
 import os
 import signal
 from functools import lru_cache
 from pathlib import Path
 
-import httpx
 import numpy as np
 import psycopg
-import trafilatura
 from fastembed import TextEmbedding
 from openai import AsyncOpenAI
 from psycopg.rows import dict_row
 from vercel.queue import ALL_DEPLOYMENTS, QueueClient, subscribe
 
+from articles import read_article
 from sources import fetch_stories
 
 SCAN_EVERY_SECONDS = 15 * 60
@@ -31,8 +29,6 @@ llm_slots = asyncio.Semaphore(LLM_CONCURRENCY)
 # and opening are at least this similar to one of your interests get scored.
 RELEVANCE_THRESHOLD = 0.6
 LLM = "anthropic/claude-haiku-5.5"
-ARTICLE_CHARS = 6000  # enough to judge a story; keeps prompts small
-USER_AGENT = "Mozilla/5.0 (compatible; Signal/1.0)"
 
 embedder = TextEmbedding("BAAI/bge-small-en-v1.5")  # downloaded into the image at build time
 
@@ -65,38 +61,6 @@ def embed(text: str) -> np.ndarray:
 def is_relevant(article: dict, interests: list[str]) -> bool:
     document = embed(f"{article['title']}. {article['text'][:500]}")
     return max(float(document @ embed(interest)) for interest in interests) >= RELEVANCE_THRESHOLD
-
-
-async def public_only(request: httpx.Request) -> None:
-    """Runs before every request, including each redirect. Links come from the open web, so refuse any
-    that point at a private address; otherwise a link could make the scorer read an internal page."""
-    try:
-        addresses = await asyncio.get_running_loop().getaddrinfo(request.url.host, request.url.port or 443)
-    except OSError as error:  # the host doesn't resolve; skip this article like any other failed read
-        raise httpx.ConnectError(f"can't resolve {request.url.host}", request=request) from error
-    if not all(ipaddress.ip_address(address[4][0]).is_global for address in addresses):
-        raise httpx.RequestError(f"refusing to read a private address: {request.url.host}", request=request)
-
-
-async def read_article(url: str) -> dict | None:
-    """Returns the article's text, lead photo, description, and author, or None when the site blocks readers."""
-    try:
-        async with httpx.AsyncClient(
-            timeout=10, follow_redirects=True, headers={"user-agent": USER_AGENT}, event_hooks={"request": [public_only]}
-        ) as client:
-            response = await client.get(url)
-            response.raise_for_status()
-    except httpx.HTTPError:
-        return None
-    page = trafilatura.bare_extraction(response.text, with_metadata=True)
-    if not page or not page.text:
-        return None
-    return {
-        "text": page.text[:ARTICLE_CHARS],
-        "image": page.image if (page.image or "").startswith("https://") else None,  # the feed is served over HTTPS
-        "description": page.description,
-        "author": page.author,
-    }
 
 
 async def judge(article: dict, profile: dict) -> dict:
