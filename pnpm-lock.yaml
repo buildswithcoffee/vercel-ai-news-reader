@@ -166,6 +166,9 @@ importers:
 
   .:
     dependencies:
+      '@neondatabase/serverless':
+        specifier: ^1.2.0
+        version: 1.2.0
       ai:
         specifier: ^7.0.163
         version: 7.0.163(zod@4.6.7)
@@ -193,6 +196,10 @@ packages:
   '@ai-sdk/provider@4.0.36':
     resolution: {integrity: sha512-GqvWZSZdBelCGughlBdOoupT258rgM3YMbaLAS9WSZJ0vlt8c9vm3My+ZT31mYhiReMCMCF2qF2axnGbILpk1A==}
     engines: {node: '>=22'}
+
+  '@neondatabase/serverless@1.2.0':
+    resolution: {integrity: sha512-tnaqgixUengZQNd9ZrS3ytQfamJzLKY8QxgqWQTNHHtB+KrFQWk77JTbbpg4RD+J3qE4eO2lVytvGDX5Kj6FdQ==}
+    engines: {node: '>=19.0.0'}
 
   '@oxc-project/types@0.156.0':
     resolution: {integrity: sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==}
@@ -448,6 +455,8 @@ snapshots:
   '@ai-sdk/provider@4.0.36':
     dependencies:
       json-schema: 0.4.0
+
+  '@neondatabase/serverless@1.2.0': {}
 
   '@oxc-project/types@0.156.0': {}
 

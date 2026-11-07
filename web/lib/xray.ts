@@ -48,7 +48,7 @@ export const parts = {
   },
   agent: {
     name: "An eve agent",
-    what: "The guide on the Ask page is an eve agent: instructions, one tool that reads Vercel's docs, and a chat channel, all files in agent/. It deploys as its own service in this project.",
+    what: "Ask Signal, in the corner of every page, is an eve agent: instructions, tools that read Vercel's docs and the stories in your feed, and a chat channel, all files in agent/. It deploys as its own service in this project.",
     why: "Conversations are durable and survive restarts, every run is traced in Agent Runs, and it ships with the same git push.",
     href: "https://eve.dev/docs",
   },

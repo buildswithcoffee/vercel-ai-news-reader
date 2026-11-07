@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getFeed, getProfile, type FeedItem, type Sort } from "@/lib/db";
 import { timeAgo } from "@/lib/time";
 import { AutoRefresh } from "./auto-refresh";
+import { AskAbout } from "./guide";
 
 const SORTS: { value: Sort; label: string }[] = [
   { value: "relevance", label: "Most relevant" },
@@ -92,6 +93,7 @@ function Story({ item }: { item: FeedItem }) {
           )}
           {item.description && <p className="text-lg leading-snug">{item.description}</p>}
           {item.excerpt && <p className="line-clamp-6 whitespace-pre-line text-sm text-muted">{item.excerpt}</p>}
+          <AskAbout story={{ id: item.id, title: item.title }} />
           <p className="text-sm">
             <a href={item.url} target="_blank" rel="noreferrer" className="font-medium text-accent hover:underline">
               Read the full story at {item.source} →
