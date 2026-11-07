@@ -1,32 +1,38 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import Link from "next/link";
-import { getFeed, getProfile, type FeedItem } from "@/lib/db";
+import { getFeed, getProfile, type FeedItem, type Sort } from "@/lib/db";
 import { timeAgo } from "@/lib/time";
 import { AutoRefresh } from "./auto-refresh";
 import { Xray } from "./xray";
 
-export default async function FeedPage() {
-  await connection(); // render on every request; the feed changes as the scorer writes
-  const profile = await getProfile();
-  if (!profile) redirect("/interests");
+const SORTS: { value: Sort; label: string }[] = [
+  { value: "relevance", label: "Most relevant" },
+  { value: "latest", label: "Latest" },
+];
 
-  const feed = await getFeed();
+export default async function FeedPage({ searchParams }: PageProps<"/">) {
+  await connection(); // render on every request; the feed changes as the scorer writes
+  if (!(await getProfile())) redirect("/interests");
+
+  const sort: Sort = (await searchParams).sort === "latest" ? "latest" : "relevance";
+  const feed = await getFeed(sort);
 
   return (
     <section>
-      <div className="flex items-end justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">Your briefing</h1>
-          <p className="mt-1 truncate text-sm text-muted">
-            Tuned for “{profile.about}”{" "}
-            <Link href="/interests" className="underline underline-offset-2 hover:text-foreground">
-              Edit
-            </Link>
-          </p>
-        </div>
-        <AutoRefresh />
-      </div>
+      <nav aria-label="Sort" className="flex gap-1 rounded-lg bg-surface p-1 text-sm w-fit">
+        {SORTS.map(({ value, label }) => (
+          <Link
+            key={value}
+            href={value === "relevance" ? "/" : `/?sort=${value}`}
+            aria-current={sort === value ? "page" : undefined}
+            className="rounded-md px-3 py-1.5 text-muted hover:text-foreground aria-[current=page]:bg-background aria-[current=page]:text-foreground aria-[current=page]:shadow-sm"
+          >
+            {label}
+          </Link>
+        ))}
+      </nav>
+      <AutoRefresh />
 
       <Xray show={["web", "neon", "daemon", "gateway"]} />
 
