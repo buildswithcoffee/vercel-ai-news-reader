@@ -101,3 +101,7 @@ alter table articles add column if not exists read_attempts integer not null def
 -- Articles saved before read_at existed: page details (photo, summary) mean the page was read.
 update articles set read_at = published_at
 where read_at is null and read_attempts = 0 and (image is not null or description is not null);
+
+-- For a story Signal only has the headline of, another source's readable story about the same news.
+-- Signal interprets the story from that coverage, links both, and hides the coverage as a duplicate.
+alter table articles add column if not exists covered_by text references articles (id) on delete set null;

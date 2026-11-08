@@ -36,7 +36,8 @@ export type FeedItem = {
   description: string | null;
   author: string | null;
   excerpt: string; // the article's opening; the rest stays at the source
-  read: boolean; // false while Signal has only the feed's summary, because the page couldn't be read yet
+  headlineOnly: boolean; // the page couldn't be read, so Signal has only the headline and a line of summary
+  coverage: { source: string; url: string } | null; // another source's story Signal read instead
 };
 
 export async function getProfile(): Promise<Profile | null> {
@@ -98,6 +99,9 @@ export type Sort = "relevance" | "latest";
 // The opening shown for stories without a reading view yet (not scored, or scored before it existed).
 export const EXCERPT_CHARS = 600;
 
+// An unread article with less text than this is only a headline and a summary (BRIEF_CHARS in the scorer).
+const HEADLINE_ONLY_CHARS = 1000;
+
 // The filter is "no-match" or a topic; null shows everything.
 export async function getFeed(sort: Sort, filter: string | null): Promise<FeedItem[]> {
   const owner = await isOwner();
@@ -107,14 +111,19 @@ export async function getFeed(sort: Sort, filter: string | null): Promise<FeedIt
 
   // Relevance ranks the past week by score. Stories without one come last.
   const rows = await sql`
-    select a.id, a.url, a.title, a.source, a.published_at, a.read_at is not null as read, s.score, s.why, s.detail,
+    select a.id, a.url, a.title, a.source, a.published_at, s.score, s.why, s.detail,
+      a.read_at is null and length(a.text) < ${HEADLINE_ONLY_CHARS} as "headlineOnly",
+      case when c.id is null then null else json_build_object('source', c.source, 'url', c.url) end as coverage,
       case when s.article_id is null then 'pending' when s.score is null then 'no-match' else 'scored' end as status,
       case when ${owner} then coalesce(s.topics, '{}') else '{}'::text[] end as topics,
       coalesce(s.takeaways, '{}') as takeaways, coalesce(s.reading, '[]') as reading,
       a.image, a.description, a.author, left(a.text, ${EXCERPT_CHARS}) as excerpt
     from articles a
     left join scores s on s.article_id = a.id
+    left join articles c on c.id = a.covered_by
     where a.source in (select name from feeds where enabled)
+      -- A story that another one was interpreted from shows inside that one, not twice.
+      and not exists (select 1 from articles p where p.covered_by = a.id and p.source in (select name from feeds where enabled))
       and (${sort} = 'latest' or a.published_at > now() - interval '7 days')
       and (${filter}::text is null
         or (${filter} = 'no-match' and s.article_id is not null and s.score is null)
