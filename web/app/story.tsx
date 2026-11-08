@@ -74,18 +74,21 @@ export function Story({ item, followUps = false }: { item: FeedItem; followUps?:
                 : "Signal can't read this page, so it only has the headline and summary."}
             </p>
           )}
-          {/* The publisher's subtitle and byline under the headline, then the photo, as a news page lays them out. */}
-          {(item.description || item.author) && (
-            <div className="space-y-1 lg:col-span-2">
-              {item.description && <p className="text-lg leading-snug">{item.description}</p>}
-              {item.author && <p className="text-sm text-muted">By {item.author}</p>}
-            </div>
-          )}
-          {item.image && <Photo src={item.image} className="aspect-[2/1] w-full rounded-lg lg:col-span-2" />}
-
-          {(item.reading.length > 0 ? item.reading : opening(item.excerpt)).map((paragraph, index) => (
-            <Passage key={index} paragraph={paragraph} />
-          ))}
+          {/* The article itself, framed apart from Signal's take above it: a panel that slides out from
+              under the card, with a soft shadow along its top edge. Subtitle and byline, then the photo,
+              as a news page lays them out; then the paragraphs, with Signal's notes in the margin. */}
+          <article className="grid gap-x-8 gap-y-5 rounded-lg border border-line p-5 shadow-[inset_0_12px_12px_-12px_color-mix(in_srgb,var(--foreground)_20%,transparent)] lg:col-span-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            {(item.description || item.author) && (
+              <div className="space-y-1 lg:col-span-2">
+                {item.description && <p className="text-lg leading-snug">{item.description}</p>}
+                {item.author && <p className="text-sm text-muted">By {item.author}</p>}
+              </div>
+            )}
+            {item.image && <Photo src={item.image} className="aspect-[2/1] w-full rounded-lg lg:col-span-2" />}
+            {(item.reading.length > 0 ? item.reading : opening(item.excerpt)).map((paragraph, index) => (
+              <Passage key={index} paragraph={paragraph} />
+            ))}
+          </article>
 
           <div className="flex flex-wrap items-center gap-3 pt-2 lg:col-span-2">
             <AskAbout

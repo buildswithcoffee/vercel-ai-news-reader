@@ -58,7 +58,17 @@ Then list 2 to 4 key takeaways from the article, each at most 15 words.
 
 Then pick up to 3 key points. For each, copy a short passage from the article word for word (at
 most 25 words), and add a note of at most 20 words on what it means for them.
-Use only what the article says; don't invent details."""
+Use only what the article says; don't invent details.
+
+How to write (everything they read: the why, the detail, takeaways, and notes):
+- Plain words a busy person understands at a glance. Avoid jargon; if a technical term is needed, say
+  what it means in a few words.
+- Lead with the point. One idea per sentence. No filler, and don't open with "This matters to you
+  because": the page already labels it "Why it matters to you".
+- Be concrete: what changed, and what it means for them or what they could do about it.
+- Don't repeat the headline, and don't restate their interests ("You follow X, and this..."): start
+  with what the story changes for them.
+- Stay within the word and sentence limits above; shorter is better."""
 
 BRIEF_PROMPT = """You help a reader decide which tech news is worth their time.
 What they care about, in their words: {about}
@@ -68,7 +78,17 @@ Publisher's summary (the article itself couldn't be read): {text}
 
 Rate from 0 to 100 how much this story likely matters to them. Then explain why in one line of at most
 25 words, speaking to them as "you". If they follow topics, list the ones this story is about.
-Go only by the headline and summary; don't guess at details they don't give."""
+Go only by the headline and summary; don't guess at details they don't give.
+
+How to write:
+- Plain words a busy person understands at a glance. Avoid jargon; if a technical term is needed, say
+  what it means in a few words.
+- Lead with the point. One idea per sentence. No filler, and don't open with "This matters to you
+  because": the page already labels it "Why it matters to you".
+- Be concrete: what changed, and what it means for them or what they could do about it.
+- Don't repeat the headline, and don't restate their interests ("You follow X, and this..."): start
+  with what the story changes for them.
+- Stay within the word and sentence limits above; shorter is better."""
 
 SAME_NEWS_PROMPT = """Are these two stories about the same specific announcement or event, not just the
 same topic or company?
