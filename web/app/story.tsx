@@ -43,7 +43,7 @@ export function Story({ item, followUps = false }: { item: FeedItem; followUps?:
             {item.why && (
               <p
                 data-xray="why"
-                className={`mt-3 rounded-md bg-surface px-3 py-2 text-sm ${hasMore ? "group-open:rounded-b-none" : ""}`}
+                className={`-ml-15 mt-3 rounded-md bg-surface px-3 py-2 text-sm sm:ml-0 ${hasMore ? "group-open:rounded-b-none" : ""}`}
               >
                 <span className="font-medium text-accent">Why it matters to you: </span>
                 {item.why}
@@ -54,7 +54,9 @@ export function Story({ item, followUps = false }: { item: FeedItem; followUps?:
         </summary>
 
         <div className="grid gap-x-8 gap-y-5 px-5 pb-6 sm:pl-20 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          {/* The rest of "why it matters" continues the box on the card, so it reads as one block. */}
+          {/* The rest of "why it matters" continues the box on the card, so it reads as one block. On phones
+              the box on the card reaches under the score badge (-ml-15: the badge's width plus the gap), so
+              both halves share the same edges. */}
           {hasMore && (
             <div className="space-y-3 rounded-b-md bg-surface px-3 pt-1 pb-3 text-sm lg:col-span-2">
               {item.detail && <p>{item.detail}</p>}
