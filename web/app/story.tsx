@@ -18,10 +18,15 @@ async function followUp(formData: FormData) {
 
 // `followUps`: show the follow-up action. The page passes it when the flag is on and you're signed in.
 export function Story({ item, followUps = false }: { item: FeedItem; followUps?: boolean }) {
+  const hasMore = Boolean(item.detail) || item.takeaways.length > 0;
   return (
     <li>
       <details name="story" className="drawer group rounded-xl border border-line">
-        <summary className="flex cursor-pointer list-none gap-4 p-5 hover:bg-surface/50 [&::-webkit-details-marker]:hidden">
+        <summary
+          className={`flex cursor-pointer list-none gap-4 p-5 hover:bg-surface/50 [&::-webkit-details-marker]:hidden ${
+            hasMore ? "group-open:pb-0" : ""
+          }`}
+        >
           <Badge item={item} />
           <div className="min-w-0 flex-1">
             <h2 className="font-medium">{item.title}</h2>
@@ -36,7 +41,10 @@ export function Story({ item, followUps = false }: { item: FeedItem; followUps?:
                 .join(" · ")}
             </p>
             {item.why && (
-              <p data-xray="why" className="mt-3 rounded-md bg-surface px-3 py-2 text-sm">
+              <p
+                data-xray="why"
+                className={`mt-3 rounded-md bg-surface px-3 py-2 text-sm ${hasMore ? "group-open:rounded-b-none" : ""}`}
+              >
                 <span className="font-medium text-accent">Why it matters to you: </span>
                 {item.why}
               </p>
@@ -46,15 +54,9 @@ export function Story({ item, followUps = false }: { item: FeedItem; followUps?:
         </summary>
 
         <div className="grid gap-x-8 gap-y-5 px-5 pb-6 sm:pl-20 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          {item.headlineOnly && (
-            <p className="text-sm text-muted lg:col-span-2">
-              {item.coverage
-                ? `Signal can't read this page, so this comes from ${item.coverage.source}'s coverage of the same news.`
-                : "Signal can't read this page, so it only has the headline and summary."}
-            </p>
-          )}
-          {(item.detail || item.takeaways.length > 0) && (
-            <div className="space-y-3 rounded-md bg-surface px-3 py-3 text-sm lg:col-span-2">
+          {/* The rest of "why it matters" continues the box on the card, so it reads as one block. */}
+          {hasMore && (
+            <div className="space-y-3 rounded-b-md bg-surface px-3 pt-1 pb-3 text-sm lg:col-span-2">
               {item.detail && <p>{item.detail}</p>}
               {item.takeaways.length > 0 && (
                 <ul className="list-disc space-y-1 pl-4">
@@ -65,8 +67,21 @@ export function Story({ item, followUps = false }: { item: FeedItem; followUps?:
               )}
             </div>
           )}
-          {item.image && <Photo src={item.image} className="aspect-video w-full rounded-lg" />}
-          {item.description && <p className="text-lg leading-snug lg:self-center">{item.description}</p>}
+          {item.headlineOnly && (
+            <p className="text-sm text-muted lg:col-span-2">
+              {item.coverage
+                ? `Signal can't read this page, so this comes from ${item.coverage.source}'s coverage of the same news.`
+                : "Signal can't read this page, so it only has the headline and summary."}
+            </p>
+          )}
+          {/* The publisher's subtitle and byline under the headline, then the photo, as a news page lays them out. */}
+          {(item.description || item.author) && (
+            <div className="space-y-1 lg:col-span-2">
+              {item.description && <p className="text-lg leading-snug">{item.description}</p>}
+              {item.author && <p className="text-sm text-muted">By {item.author}</p>}
+            </div>
+          )}
+          {item.image && <Photo src={item.image} className="aspect-[2/1] w-full rounded-lg lg:col-span-2" />}
 
           {(item.reading.length > 0 ? item.reading : opening(item.excerpt)).map((paragraph, index) => (
             <Passage key={index} paragraph={paragraph} />
@@ -90,7 +105,6 @@ export function Story({ item, followUps = false }: { item: FeedItem; followUps?:
                 {item.coverage.source}&apos;s coverage ↗
               </a>
             )}
-            {item.author && <span className="text-sm text-muted">By {item.author}</span>}
           </div>
 
           {followUps && (
