@@ -71,3 +71,9 @@ insert into feeds (name, url, enabled) values
   ('Interconnects',          'https://www.interconnects.ai/feed',                               false),
   ('Stratechery',            'https://stratechery.com/feed/',                                   false)
 on conflict (name) do nothing;
+
+-- Every article the scorer checks gets a scores row. A null score means the quick check found it
+-- isn't a match, so it never went to the LLM. No row means it hasn't been checked (or scoring failed).
+alter table scores alter column score drop not null;
+alter table scores alter column why drop not null;
+alter table scores add column if not exists topics text[] not null default '{}';  -- which of your topics it covers

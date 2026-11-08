@@ -32,15 +32,6 @@ LLM = "anthropic/claude-haiku-5.5"
 
 embedder = TextEmbedding("BAAI/bge-small-en-v1.5")  # downloaded into the image at build time
 
-SCORE_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "score": {"type": "integer"},
-        "why": {"type": "string"},
-    },
-    "required": ["score", "why"],
-    "additionalProperties": False,
-}
 
 PROMPT = """You help a reader decide which tech news is worth their time.
 What they care about, in their words: {about}
@@ -48,8 +39,16 @@ Topics they follow: {topics}
 Headline: {title} ({source})
 Article (may be cut short): {text}
 
-Rate from 0 to 100 how much this story matters to them. Then explain why in one short
-sentence, speaking to them as "you". Use only what the article says; don't invent details."""
+Rate from 0 to 100 how much this story matters to them. Then explain why in one sentence of at
+most 30 words, speaking to them as "you". If they follow topics, list the ones this story is about.
+Use only what the article says; don't invent details."""
+
+
+def answer_schema(topics: list[str]) -> dict:
+    properties = {"score": {"type": "integer"}, "why": {"type": "string"}}
+    if topics:  # tags for the feed's filter, chosen only from the reader's own topics
+        properties["topics"] = {"type": "array", "items": {"type": "string", "enum": topics}}
+    return {"type": "object", "properties": properties, "required": list(properties), "additionalProperties": False}
 
 
 @lru_cache(maxsize=10_000)
@@ -69,12 +68,12 @@ async def judge(article: dict, profile: dict) -> dict:
     client = AsyncOpenAI(api_key=token, base_url="https://ai-gateway.vercel.sh/v1", max_retries=0, timeout=30)
     response = await client.chat.completions.create(
         model=LLM,
-        max_tokens=256,
+        max_tokens=512,  # room for a short answer; you pay only for what the model writes
         messages=[{
             "role": "user",
             "content": PROMPT.format(about=profile["about"], topics=", ".join(profile["topics"]) or "none", **article),
         }],
-        response_format={"type": "json_schema", "json_schema": {"name": "score", "schema": SCORE_SCHEMA}},
+        response_format={"type": "json_schema", "json_schema": {"name": "score", "schema": answer_schema(profile["topics"])}},
     )
     choice = response.choices[0]
     if choice.finish_reason == "length":
@@ -99,8 +98,22 @@ async def score(conn: psycopg.AsyncConnection, articles: list[dict], profile: di
         return  # nothing to score against until you say what you care about
 
     interests = [profile["about"], *profile["topics"]]
-    relevant = [article for article in articles if is_relevant(article, interests)]
+    relevant, no_match = [], []
+    for article in articles:
+        (relevant if is_relevant(article, interests) else no_match).append(article)
     print(f"[scorer] {len(relevant)} of {len(articles)} articles look relevant; asking the LLM to score them")
+
+    # Record the ones that aren't a match too (a null score), so the feed can tell them apart
+    # from articles that haven't been checked yet (no row at all).
+    async with conn.cursor() as cursor:
+        await cursor.executemany(
+            """
+            insert into scores (article_id, score, why, topics) values (%s, null, null, '{}')
+            on conflict (article_id) do update set score = null, why = null, topics = '{}'
+            """,
+            [(article["id"],) for article in no_match],
+        )
+
     async def score_one(article: dict) -> None:
         # Shared with scheduled scans, so simultaneous scan/rescore tasks also stay bounded.
         async with llm_slots:
@@ -109,12 +122,13 @@ async def score(conn: psycopg.AsyncConnection, articles: list[dict], profile: di
             except Exception as error:  # one bad answer shouldn't stop the rest of the batch
                 print(f"[scorer] couldn't score {article['title']}: {error!r}")
                 return
+        topics = [topic for topic in result.get("topics", []) if topic in profile["topics"]]
         await conn.execute(
             """
-            insert into scores (article_id, score, why) values (%s, %s, %s)
-            on conflict (article_id) do update set score = excluded.score, why = excluded.why
+            insert into scores (article_id, score, why, topics) values (%s, %s, %s, %s)
+            on conflict (article_id) do update set score = excluded.score, why = excluded.why, topics = excluded.topics
             """,
-            (article["id"], result["score"], result["why"]),
+            (article["id"], result["score"], result["why"], topics),
         )
         print(f"[scorer] {result['score']:>3}  {article['title']}")
 
