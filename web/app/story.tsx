@@ -39,6 +39,11 @@ export function Story({ item, followUps = false }: { item: FeedItem; followUps?:
         </summary>
 
         <div className="grid gap-x-8 gap-y-5 px-5 pb-6 sm:pl-20 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          {!item.read && (
+            <p className="text-sm text-muted lg:col-span-2">
+              Signal couldn&apos;t read this page yet, so this is based on the publisher&apos;s summary. It will try again.
+            </p>
+          )}
           {(item.detail || item.takeaways.length > 0) && (
             <div className="space-y-3 rounded-md bg-surface px-3 py-3 text-sm lg:col-span-2">
               {item.detail && <p>{item.detail}</p>}

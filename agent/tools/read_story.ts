@@ -11,8 +11,10 @@ export default defineTool({
   inputSchema: z.object({ id: z.string().max(64).describe("The story's id, from list_feed or the page context.") }),
   async execute({ id }) {
     const sql = neon(process.env.DATABASE_URL!);
+    // Dates come back as text: eve hands tool results to the model as plain JSON and rejects Date objects.
     const [story] = await sql`
-      select a.title, a.source, a.url, a.published_at, a.author, a.description, left(a.text, 600) as opening,
+      select a.title, a.source, a.url, a.published_at::text as published_at, a.author, a.description, left(a.text, 600) as opening,
+        a.read_at is not null as read_full_article,
         s.score, s.why, s.detail, s.takeaways, s.reading as passages
       from articles a
       left join scores s on s.article_id = a.id

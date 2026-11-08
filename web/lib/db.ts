@@ -36,6 +36,7 @@ export type FeedItem = {
   description: string | null;
   author: string | null;
   excerpt: string; // the article's opening; the rest stays at the source
+  read: boolean; // false while Signal has only the feed's summary, because the page couldn't be read yet
 };
 
 export async function getProfile(): Promise<Profile | null> {
@@ -106,7 +107,7 @@ export async function getFeed(sort: Sort, filter: string | null): Promise<FeedIt
 
   // Relevance ranks the past week by score. Stories without one come last.
   const rows = await sql`
-    select a.id, a.url, a.title, a.source, a.published_at, s.score, s.why, s.detail,
+    select a.id, a.url, a.title, a.source, a.published_at, a.read_at is not null as read, s.score, s.why, s.detail,
       case when s.article_id is null then 'pending' when s.score is null then 'no-match' else 'scored' end as status,
       case when ${owner} then coalesce(s.topics, '{}') else '{}'::text[] end as topics,
       coalesce(s.takeaways, '{}') as takeaways, coalesce(s.reading, '[]') as reading,

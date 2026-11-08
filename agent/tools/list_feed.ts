@@ -7,9 +7,10 @@ export default defineTool({
   inputSchema: z.object({}),
   async execute() {
     const sql = neon(process.env.DATABASE_URL!);
+    // Dates come back as text: eve hands tool results to the model as plain JSON and rejects Date objects.
     // The guide is anonymous: profile-derived topic matches are owner-only.
     const stories = await sql`
-      select a.id, a.title, a.source, a.published_at, s.score, s.why
+      select a.id, a.title, a.source, a.published_at::text as published_at, s.score, s.why
       from articles a
       join scores s on s.article_id = a.id
       where s.score is not null

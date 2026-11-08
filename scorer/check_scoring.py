@@ -120,5 +120,48 @@ class ScoringChecks(unittest.IsolatedAsyncioTestCase):
         self.conn.execute.assert_not_awaited()
 
 
+
+class ScanChecks(unittest.IsolatedAsyncioTestCase):
+    """A page that fails to read is retried on later scans, and rescored once it reads."""
+
+    async def scan(self, new, claimed, pages):
+        conn = MagicMock()
+        conn.execute = AsyncMock()
+        queries = iter([[{"name": "Feed", "url": "https://example.com/feed"}], *([row] for row in new), claimed])
+        connect = AsyncMock(return_value=MagicMock(
+            __aenter__=AsyncMock(return_value=conn), __aexit__=AsyncMock(return_value=False)))
+        story = MagicMock(id="x", url="u", title="t", source="s", published_at=None, text="feed summary")
+        score = AsyncMock()
+        with (
+            patch.object(worker, "connect", connect),
+            patch.object(worker, "fetch_all", AsyncMock(side_effect=lambda *_: next(queries))),
+            patch.object(worker, "fetch_stories", AsyncMock(return_value=[story] * len(new))),
+            patch.object(worker, "read_article", AsyncMock(side_effect=lambda url: pages.get(url))),
+            patch.object(worker, "score", score),
+        ):
+            await worker.scan()
+        updates = [call.args[1] for call in conn.execute.await_args_list]
+        scored = score.await_args.args[1] if score.await_args else []
+        return updates, scored
+
+    async def test_new_and_retried_pages(self):
+        page = {"text": "the full article", "image": None, "description": "d", "author": None}
+        new = [{"id": "new", "url": "new-url", "title": "New", "source": "s", "text": "feed summary"}]
+        claimed = new + [
+            {"id": "retry", "url": "retry-url", "title": "Retried", "source": "s", "text": "old summary"},
+            {"id": "still-down", "url": "down-url", "title": "Down", "source": "s", "text": "summary"},
+        ]
+        updates, scored = await self.scan(new, claimed, {"new-url": page, "retry-url": page})
+        self.assertEqual([update[-1] for update in updates], ["new", "retry"])  # read_at set only when read
+        self.assertEqual([article["id"] for article in scored], ["new", "retry"])  # still-down keeps waiting
+        self.assertTrue(all(article["text"] == "the full article" for article in scored))
+
+    async def test_new_article_whose_page_fails_is_still_scored(self):
+        new = [{"id": "new", "url": "new-url", "title": "New", "source": "s", "text": "feed summary"}]
+        updates, scored = await self.scan(new, new, {})
+        self.assertEqual(updates, [])
+        self.assertEqual([(article["id"], article["text"]) for article in scored], [("new", "feed summary")])
+
+
 if __name__ == "__main__":
     unittest.main()
