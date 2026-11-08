@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isProfileOwner } from "./lib/profile-owner";
+import { OWNER_COOKIE, isOwnerSession } from "./lib/profile-owner";
 
+// Your feed is for the owner; everyone else signs in first. The data layer checks again, since
+// Server Actions are public endpoints.
 export function proxy(request: NextRequest) {
-  if (isProfileOwner(request.headers.get("authorization"))) return NextResponse.next();
-  return new NextResponse("Changing your interests or sources requires the owner's credentials.", {
-    status: 401,
-    headers: {
-      "WWW-Authenticate": 'Basic realm="Signal profile", charset="UTF-8"',
-      "Cache-Control": "no-store",
-    },
-  });
+  if (isOwnerSession(request.cookies.get(OWNER_COOKIE)?.value)) return NextResponse.next();
+  return NextResponse.redirect(new URL("/sign-in", request.url));
 }
 
-export const config = { matcher: ["/interests/:path*", "/sources/:path*"] };
+export const config = { matcher: "/your-feed/:path*" };

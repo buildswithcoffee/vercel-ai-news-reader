@@ -21,7 +21,7 @@ function feedUrl(sort: Sort, filter: string | null) {
 
 export default async function FeedPage({ searchParams }: PageProps<"/">) {
   await connection(); // render on every request; the feed changes as the scorer writes
-  if (!(await getProfile())) redirect("/interests");
+  if (!(await getProfile())) redirect("/your-feed");
 
   const params = await searchParams;
   const sort: Sort = params.sort === "latest" ? "latest" : "relevance";
