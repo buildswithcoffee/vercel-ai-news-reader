@@ -7,7 +7,7 @@ import socket
 import httpx
 import trafilatura
 
-ARTICLE_CHARS = 6000  # enough to judge a story; keeps prompts small
+ARTICLE_CHARS = 40_000  # the whole story for nearly every article; caps the rare giant page, and its cost
 USER_AGENT = "Mozilla/5.0 (compatible; Signal/1.0)"
 MAX_REDIRECTS = 10
 # Translation/tunneling can turn an apparently public IPv6 address into a private IPv4

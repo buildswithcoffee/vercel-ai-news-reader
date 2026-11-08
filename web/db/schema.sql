@@ -92,3 +92,4 @@ create table if not exists follow_ups (
   done       boolean not null default false,
   created_at timestamptz not null default now()
 );
+alter table scores add column if not exists detail text;  -- the rest of why it matters, shown when the story is open
