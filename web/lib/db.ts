@@ -14,6 +14,10 @@ export type Profile = { about: string; topics: string[] };
 
 export type Source = { name: string; kind: string; url: string; enabled: boolean };
 
+// A paragraph of the article. `mark` is the [start, end) of a key passage in it, with Signal's note;
+// `gap` means paragraphs were skipped before it.
+export type Paragraph = { text: string; gap: boolean; mark?: [number, number]; note?: string };
+
 export type FeedItem = {
   id: string;
   url: string;
@@ -24,7 +28,8 @@ export type FeedItem = {
   score: number | null;
   why: string | null;
   topics: string[]; // private profile matches; empty for anonymous visitors
-  points: { quote: string; note: string }[]; // passages from the article, each with Signal's note
+  takeaways: string[]; // 2 to 4 bullets, shown when the story is open
+  reading: Paragraph[]; // the article as the open story shows it; empty until scored
   // The preview you see when you expand a story. Null when the site blocks readers.
   image: string | null;
   description: string | null;
@@ -100,7 +105,7 @@ export async function getFeed(sort: Sort, filter: string | null): Promise<FeedIt
     select a.id, a.url, a.title, a.source, a.published_at, s.score, s.why,
       case when s.article_id is null then 'pending' when s.score is null then 'no-match' else 'scored' end as status,
       case when ${owner} then coalesce(s.topics, '{}') else '{}'::text[] end as topics,
-      coalesce(s.points, '[]') as points,
+      coalesce(s.takeaways, '{}') as takeaways, coalesce(s.reading, '[]') as reading,
       a.image, a.description, a.author, left(a.text, 600) as excerpt
     from articles a
     left join scores s on s.article_id = a.id

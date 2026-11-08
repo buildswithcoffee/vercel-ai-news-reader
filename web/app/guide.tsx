@@ -46,11 +46,11 @@ export function Guide({ children }: { children: ReactNode }) {
 }
 
 // Opens the guide with this story attached, so you can pick up where its "why" left off.
-export function AskAbout({ story }: { story: StoryRef }) {
+export function AskAbout({ story, className }: { story: StoryRef; className: string }) {
   const askAbout = use(GuideContext);
   return (
-    <button onClick={() => askAbout(story)} className="text-sm font-medium text-accent hover:underline">
-      Ask Signal about this →
+    <button onClick={() => askAbout(story)} className={className}>
+      Ask Signal about this
     </button>
   );
 }

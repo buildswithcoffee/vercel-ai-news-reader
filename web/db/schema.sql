@@ -81,3 +81,5 @@ alter table scores alter column score drop not null;
 alter table scores alter column why drop not null;
 alter table scores add column if not exists topics text[] not null default '{}';  -- which of your topics it covers
 alter table scores add column if not exists points jsonb not null default '[]';  -- key passages, each with Signal's note
+alter table scores add column if not exists takeaways text[] not null default '{}';  -- 2 to 4 bullets for the open story
+alter table scores add column if not exists reading jsonb not null default '[]';     -- the article as the open story shows it
