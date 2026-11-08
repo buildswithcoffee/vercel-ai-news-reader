@@ -24,6 +24,7 @@ export type FeedItem = {
   score: number | null;
   why: string | null;
   topics: string[]; // private profile matches; empty for anonymous visitors
+  points: { quote: string; note: string }[]; // passages from the article, each with Signal's note
   // The preview you see when you expand a story. Null when the site blocks readers.
   image: string | null;
   description: string | null;
@@ -99,6 +100,7 @@ export async function getFeed(sort: Sort, filter: string | null): Promise<FeedIt
     select a.id, a.url, a.title, a.source, a.published_at, s.score, s.why,
       case when s.article_id is null then 'pending' when s.score is null then 'no-match' else 'scored' end as status,
       case when ${owner} then coalesce(s.topics, '{}') else '{}'::text[] end as topics,
+      coalesce(s.points, '[]') as points,
       a.image, a.description, a.author, left(a.text, 600) as excerpt
     from articles a
     left join scores s on s.article_id = a.id

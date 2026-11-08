@@ -14,7 +14,7 @@ const STEPS: { text: string; part: PartName }[] = [
 
 export default function HowItWorksPage() {
   return (
-    <section>
+    <section className="max-w-3xl">
       <h1 className="text-2xl font-semibold tracking-tight">How Signal works</h1>
       <p className="mt-2 text-muted">
         One Vercel project: a Next.js app, a private Python API, an always-on Python worker, an AI agent, and

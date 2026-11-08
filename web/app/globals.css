@@ -69,3 +69,20 @@ body {
     opacity: 1;
   }
 }
+
+/* Stories open like a drawer: the body slides open instead of appearing all at once. */
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    interpolate-size: allow-keywords;
+  }
+  details.drawer::details-content {
+    block-size: 0;
+    overflow-y: clip;
+    transition:
+      block-size 0.35s ease,
+      content-visibility 0.35s allow-discrete;
+  }
+  details.drawer[open]::details-content {
+    block-size: auto;
+  }
+}

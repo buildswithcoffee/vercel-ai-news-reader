@@ -80,3 +80,4 @@ on conflict (name) do update set kind = excluded.kind, url = excluded.url;
 alter table scores alter column score drop not null;
 alter table scores alter column why drop not null;
 alter table scores add column if not exists topics text[] not null default '{}';  -- which of your topics it covers
+alter table scores add column if not exists points jsonb not null default '[]';  -- key passages, each with Signal's note
