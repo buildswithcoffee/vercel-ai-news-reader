@@ -133,3 +133,46 @@ export async function getFeedTopics(): Promise<string[]> {
   `;
   return rows.map((row) => row.topic as string);
 }
+
+export type FollowUp = { id: string; task: string; done: boolean; title: string; url: string; source: string };
+
+// Follow-ups are the owner's, like the profile: every read and write checks the session here.
+async function ownerOnly() {
+  if (!(await isOwner())) throw new Error("Unauthorized");
+}
+
+export async function getFollowUps(): Promise<FollowUp[]> {
+  await ownerOnly();
+  return (await sql`
+    select f.id::text, f.task, f.done, a.title, a.url, a.source
+    from follow_ups f join articles a on a.id = f.article_id
+    order by f.done, f.created_at desc
+  `) as FollowUp[];
+}
+
+export async function countOpenFollowUps(): Promise<number> {
+  await ownerOnly();
+  const [row] = await sql`select count(*)::int as open from follow_ups where not done`;
+  return row.open;
+}
+
+export async function addFollowUp(articleId: string, task: string) {
+  await ownerOnly();
+  task = task.trim();
+  if (!task || task.length > 200) throw new Error("Invalid follow-up");
+  // A cap keeps one person's list, and the table, a reasonable size.
+  await sql`
+    insert into follow_ups (article_id, task)
+    select ${articleId}, ${task} where (select count(*) from follow_ups) < 500
+  `;
+}
+
+export async function setFollowUpDone(id: string, done: boolean) {
+  await ownerOnly();
+  await sql`update follow_ups set done = ${done} where id = ${id}::bigint`;
+}
+
+export async function deleteFollowUp(id: string) {
+  await ownerOnly();
+  await sql`delete from follow_ups where id = ${id}::bigint`;
+}

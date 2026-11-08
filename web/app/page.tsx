@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import Link from "next/link";
-import { getFeed, getFeedTopics, getProfile, type Sort } from "@/lib/db";
+import { getFeed, getFeedTopics, getProfile, isOwner, type Sort } from "@/lib/db";
+import { followUpsFlag } from "@/flags";
 import { AutoRefresh } from "./auto-refresh";
 import { Story } from "./story";
 
@@ -31,7 +32,7 @@ export default async function FeedPage({ searchParams }: PageProps<"/">) {
     { value: "no-match", label: "No match" },
   ];
   const filter = filters.find(({ value }) => value === params.filter)?.value ?? null;
-  const feed = await getFeed(sort, filter);
+  const [feed, followUps] = await Promise.all([getFeed(sort, filter), canFollowUp()]);
 
   return (
     <section>
@@ -69,10 +70,15 @@ export default async function FeedPage({ searchParams }: PageProps<"/">) {
       ) : (
         <ol className="mt-8 space-y-4">
           {feed.map((item) => (
-            <Story key={item.id} item={item} />
+            <Story key={item.id} item={item} followUps={followUps} />
           ))}
         </ol>
       )}
     </section>
   );
+}
+
+// Follow-ups are behind a flag, and only the owner has them.
+async function canFollowUp() {
+  return (await isOwner()) && (await followUpsFlag());
 }
