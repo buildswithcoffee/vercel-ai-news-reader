@@ -18,6 +18,17 @@ Use a separate key for preview/development environments if editing is needed the
 Deploy after configuring the variable. The normal web build applies the additive,
 idempotent database migration before the daemon uses the new columns/table.
 
+## Profile-derived feed topics
+
+`scores.topics` contains exact matches from the owner's saved interests, not public
+article classifications. The feed data functions check owner credentials on every
+request: anonymous visitors receive no topic labels or topic filter choices, and
+supplied topic filters are ignored so they cannot probe saved selections. The
+anonymous guide's `list_feed` tool never selects this column. All / No match filters,
+scores, and explanations remain public. The authenticated owner can still see and
+filter by matched topics. No migration or rescore is needed to protect existing rows.
+Deployments still running the old code remain exposed until replaced or removed.
+
 ## Rescore admission and spending bounds
 
 - Profile writes require owner authorization, including direct Server Action calls.
