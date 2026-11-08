@@ -50,7 +50,7 @@ export default async function YourFeedPage({ searchParams }: PageProps<"/your-fe
   const kinds = Map.groupBy(sources, (source) => source.kind);
 
   return (
-    <section>
+    <section className="max-w-3xl">
       <h1 className="text-2xl font-semibold tracking-tight">Your feed</h1>
       <p className="mt-2 text-muted">What you care about, and where Signal looks for it.</p>
       {wait && (

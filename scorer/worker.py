@@ -16,6 +16,7 @@ import psycopg
 from fastembed import TextEmbedding
 from openai import AsyncOpenAI
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 from vercel.queue import ALL_DEPLOYMENTS, QueueClient, subscribe
 
 from articles import read_article
@@ -41,11 +42,26 @@ Article (may be cut short): {text}
 
 Rate from 0 to 100 how much this story matters to them. Then explain why in one sentence of at
 most 30 words, speaking to them as "you". If they follow topics, list the ones this story is about.
+
+Then pick up to 3 key points. For each, copy a short passage from the article word for word (at
+most 25 words), and add a note of at most 20 words on what it means for them.
 Use only what the article says; don't invent details."""
 
 
 def answer_schema(topics: list[str]) -> dict:
-    properties = {"score": {"type": "integer"}, "why": {"type": "string"}}
+    properties = {
+        "score": {"type": "integer"},
+        "why": {"type": "string"},
+        "points": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"quote": {"type": "string"}, "note": {"type": "string"}},
+                "required": ["quote", "note"],
+                "additionalProperties": False,
+            },
+        },
+    }
     if topics:  # tags for the feed's filter, chosen only from the reader's own topics
         properties["topics"] = {"type": "array", "items": {"type": "string", "enum": topics}}
     return {"type": "object", "properties": properties, "required": list(properties), "additionalProperties": False}
@@ -68,7 +84,7 @@ async def judge(article: dict, profile: dict) -> dict:
     client = AsyncOpenAI(api_key=token, base_url="https://ai-gateway.vercel.sh/v1", max_retries=0, timeout=30)
     response = await client.chat.completions.create(
         model=LLM,
-        max_tokens=512,  # room for a short answer; you pay only for what the model writes
+        max_tokens=1024,  # room for the answer and its key points; you pay only for what the model writes
         messages=[{
             "role": "user",
             "content": PROMPT.format(about=profile["about"], topics=", ".join(profile["topics"]) or "none", **article),
@@ -79,6 +95,11 @@ async def judge(article: dict, profile: dict) -> dict:
     if choice.finish_reason == "length":
         raise ValueError("the answer was cut off at max_tokens")
     return json.loads(choice.message.content)
+
+
+# Compare passages loosely: ignore spacing, case, and curly vs straight quotes.
+def squash(text: str) -> str:
+    return " ".join(text.translate(str.maketrans("‘’“”", "''\"\"")).split()).lower()
 
 
 def connect():
@@ -123,12 +144,15 @@ async def score(conn: psycopg.AsyncConnection, articles: list[dict], profile: di
                 print(f"[scorer] couldn't score {article['title']}: {error!r}")
                 return
         topics = [topic for topic in result.get("topics", []) if topic in profile["topics"]]
+        # Show a passage as a quote only if the article really says it.
+        points = [point for point in result["points"][:3] if squash(point["quote"]) in squash(article["text"])]
         await conn.execute(
             """
-            insert into scores (article_id, score, why, topics) values (%s, %s, %s, %s)
-            on conflict (article_id) do update set score = excluded.score, why = excluded.why, topics = excluded.topics
+            insert into scores (article_id, score, why, topics, points) values (%s, %s, %s, %s, %s)
+            on conflict (article_id) do update
+              set score = excluded.score, why = excluded.why, topics = excluded.topics, points = excluded.points
             """,
-            (article["id"], result["score"], result["why"], topics),
+            (article["id"], result["score"], result["why"], topics, Jsonb(points)),
         )
         print(f"[scorer] {result['score']:>3}  {article['title']}")
 
