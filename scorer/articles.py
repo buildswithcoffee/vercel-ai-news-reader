@@ -102,10 +102,13 @@ async def read_article(url: str) -> dict | None:
     """Return extracted content only after every destination has passed validation."""
     try:
         response = await fetch_article(url)
-    except (httpx.HTTPError, httpx.InvalidURL, OSError, ValueError, TimeoutError):
+    except (httpx.HTTPError, httpx.InvalidURL, OSError, ValueError, TimeoutError) as error:
+        # e.g. a 403 from a site that blocks cloud servers, a timeout, or an address we refuse
+        print(f"[scorer] couldn't fetch {url}: {error!r}")
         return None
     page = trafilatura.bare_extraction(response.text, with_metadata=True)
     if not page or not page.text:
+        print(f"[scorer] no article text found at {url} ({response.headers.get('content-type')})")
         return None
     return {
         "text": page.text[:ARTICLE_CHARS],

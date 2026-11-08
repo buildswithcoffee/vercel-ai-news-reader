@@ -99,6 +99,10 @@ async def judge(article: dict, profile: dict) -> dict:
             "content": PROMPT.format(about=profile["about"], topics=", ".join(profile["topics"]) or "none", **article),
         }],
         response_format={"type": "json_schema", "json_schema": {"name": "score", "schema": answer_schema(profile["topics"])}},
+        # No extended thinking: Haiku 5.5 otherwise decides per article whether to think, and its
+        # thinking counts toward max_tokens. On real articles that cut off half the answers, and
+        # doubled the time and output cost, with no better scores.
+        extra_body={"reasoning": {"effort": "none"}},
     )
     choice = response.choices[0]
     if choice.finish_reason == "length":
