@@ -63,7 +63,6 @@ insert into feeds (name, kind, url, enabled) values
   ('AWS re:Invent',          'Platforms', 'https://aws.amazon.com/blogs/aws/category/events/reinvent/feed/',     true),
   ('NVIDIA',                 'Platforms', 'https://blogs.nvidia.com/feed/',                                      false),
   ('GitHub',                 'Platforms', 'https://github.blog/feed/',                                           false),
-  ('Cloudflare',             'Platforms', 'https://blog.cloudflare.com/rss/',                                    false),
   ('Next.js',                'Platforms', 'https://nextjs.org/feed.xml',                                         false),
   ('AWS Machine Learning',   'Platforms', 'https://aws.amazon.com/blogs/machine-learning/feed/',                 false),
   ('Meta Engineering',       'Platforms', 'https://engineering.fb.com/feed/',                                    false),
@@ -74,6 +73,8 @@ insert into feeds (name, kind, url, enabled) values
   ('Interconnects',          'Writers',   'https://www.interconnects.ai/feed',                                   false),
   ('Stratechery',            'Writers',   'https://stratechery.com/feed/',                                       false)
 on conflict (name) do update set kind = excluded.kind, url = excluded.url;
+-- Sources taken out of the catalog. Their stories stay stored but leave the feed with the source.
+delete from feeds where name in ('Cloudflare');
 
 -- Every article the scorer checks gets a scores row. A null score means the quick check found it
 -- isn't a match, so it never went to the LLM. No row means it hasn't been checked (or scoring failed).
