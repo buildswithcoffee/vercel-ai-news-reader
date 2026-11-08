@@ -138,6 +138,7 @@ class ScanChecks(unittest.IsolatedAsyncioTestCase):
             patch.object(worker, "fetch_stories", AsyncMock(return_value=[story] * len(new))),
             patch.object(worker, "read_article", AsyncMock(side_effect=lambda url: pages.get(url))),
             patch.object(worker, "score", score),
+            patch.object(worker, "cover_headlines", AsyncMock()),
         ):
             await worker.scan()
         updates = [call.args[1] for call in conn.execute.await_args_list]
@@ -161,6 +162,69 @@ class ScanChecks(unittest.IsolatedAsyncioTestCase):
         updates, scored = await self.scan(new, new, {})
         self.assertEqual(updates, [])
         self.assertEqual([(article["id"], article["text"]) for article in scored], [("new", "feed summary")])
+
+
+
+class CoverageChecks(unittest.IsolatedAsyncioTestCase):
+    """A story we only have the headline of is interpreted from another source's coverage of it."""
+
+    async def asyncSetUp(self):
+        self.conn = MagicMock()
+        self.conn.execute = AsyncMock()
+        self.conn.cursor.return_value.__aenter__.return_value = AsyncMock()
+        self.judged = []
+
+        async def judge(article, profile):
+            self.judged.append(article)
+            return {**answer(), "points": [{"quote": "the new model finds bugs", "note": "n"}]} if article["read"] else \
+                {"score": 50, "why": "Headline only", "topics": []}
+
+        for mock in (
+            patch.object(worker, "llm_slots", asyncio.Semaphore(worker.LLM_CONCURRENCY)),
+            patch.object(worker, "is_relevant", return_value=True),
+            patch.object(worker, "judge", judge),
+        ):
+            mock.start()
+            self.addCleanup(mock.stop)
+        self.headline = {"id": "h", "title": "Introducing a model", "source": "OpenAI", "text": "One line.",
+                         "published_at": "2026-11-08", "read": False}
+        self.coverage = {"id": "c", "title": "OpenAI launched a model", "source": "The Verge",
+                         "text": "Intro. Reporters say the new model finds bugs fast. " * 30}
+
+    def saved(self):
+        insert = next(c for c in self.conn.execute.await_args_list if "insert into scores" in c.args[0])
+        link = next(c for c in self.conn.execute.await_args_list if "covered_by" in c.args[0])
+        return insert.args[1], link.args[1]
+
+    async def test_headline_uses_coverage(self):
+        with patch.object(worker, "find_coverage", AsyncMock(return_value=self.coverage)):
+            await worker.score(self.conn, [self.headline], PROFILE)
+        self.assertEqual(self.judged[0]["text"], self.coverage["text"])  # judged from the coverage
+        self.assertIn("via The Verge", self.judged[0]["source"])
+        row, link = self.saved()
+        self.assertEqual(link, ("c", "h"))
+        self.assertEqual(len(row[5].obj), 1)  # the quote is checked against the coverage it came from
+        self.assertTrue(row[7].obj)  # and the reading view shows the coverage
+
+    async def test_headline_without_coverage_stays_brief(self):
+        with patch.object(worker, "find_coverage", AsyncMock(return_value=None)):
+            await worker.score(self.conn, [self.headline], PROFILE)
+        row, link = self.saved()
+        self.assertEqual(link, (None, "h"))
+        self.assertEqual((row[3], row[5].obj, row[6], row[7].obj), (None, [], [], []))  # no invented depth
+
+    async def test_find_coverage_asks_only_about_similar_stories(self):
+        unrelated = {"id": "u", "title": "Weather", "source": "The Verge", "text": "Rain. " * 300}
+        vectors = {"h": [1.0, 0.0], "c": [0.8, 0.6], "u": [0.0, 1.0]}
+        same = AsyncMock(return_value=True)
+        with (
+            patch.object(worker, "fetch_all", AsyncMock(return_value=[unrelated, self.coverage])),
+            patch.object(worker, "document", lambda a: worker.np.array(vectors[a["id"]])),
+            patch.object(worker, "same_news", same),
+        ):
+            found = await worker.find_coverage(self.conn, self.headline)
+        self.assertEqual(found["id"], "c")
+        self.assertEqual([c.args[1]["id"] for c in same.await_args_list], ["c"])  # never asked about "u"
 
 
 if __name__ == "__main__":

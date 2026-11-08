@@ -33,6 +33,12 @@ llm_slots = asyncio.Semaphore(LLM_CONCURRENCY)
 # and opening are at least this similar to one of your interests get scored.
 RELEVANCE_THRESHOLD = 0.6
 LLM = "anthropic/claude-haiku-5.5"
+# An article whose page couldn't be read, with less text than this, is only a headline and a line of
+# summary (OpenAI blocks cloud servers; some Hacker News links are paywalled).
+BRIEF_CHARS = 1000
+# For those, other sources' stories this similar are worth asking about; an LLM confirms. Similarity
+# alone can't tell the same announcement from the same topic (measured on real stories).
+COVERAGE_SHORTLIST = 0.7
 
 embedder = TextEmbedding("BAAI/bge-small-en-v1.5")  # downloaded into the image at build time
 
@@ -54,8 +60,28 @@ Then pick up to 3 key points. For each, copy a short passage from the article wo
 most 25 words), and add a note of at most 20 words on what it means for them.
 Use only what the article says; don't invent details."""
 
+BRIEF_PROMPT = """You help a reader decide which tech news is worth their time.
+What they care about, in their words: {about}
+Topics they follow: {topics}
+Headline: {title} ({source})
+Publisher's summary (the article itself couldn't be read): {text}
 
-def answer_schema(topics: list[str]) -> dict:
+Rate from 0 to 100 how much this story likely matters to them. Then explain why in one line of at most
+25 words, speaking to them as "you". If they follow topics, list the ones this story is about.
+Go only by the headline and summary; don't guess at details they don't give."""
+
+SAME_NEWS_PROMPT = """Are these two stories about the same specific announcement or event, not just the
+same topic or company?
+A: {a[title]} ({a[source]}). {a_text}
+B: {b[title]} ({b[source]}). {b_text}"""
+
+
+def answer_schema(topics: list[str], brief: bool = False) -> dict:
+    if brief:  # only a headline to go on: a score and one line, no invented depth
+        properties = {"score": {"type": "integer"}, "why": {"type": "string"}}
+        if topics:
+            properties["topics"] = {"type": "array", "items": {"type": "string", "enum": topics}}
+        return {"type": "object", "properties": properties, "required": list(properties), "additionalProperties": False}
     properties = {
         "score": {"type": "integer"},
         "why": {"type": "string"},
@@ -82,23 +108,27 @@ def embed(text: str) -> np.ndarray:
     return vector / np.linalg.norm(vector)
 
 
+def document(article: dict) -> np.ndarray:
+    return embed(f"{article['title']}. {article['text'][:500]}")
+
+
 def is_relevant(article: dict, interests: list[str]) -> bool:
-    document = embed(f"{article['title']}. {article['text'][:500]}")
-    return max(float(document @ embed(interest)) for interest in interests) >= RELEVANCE_THRESHOLD
+    return max(float(document(article) @ embed(interest)) for interest in interests) >= RELEVANCE_THRESHOLD
 
 
-async def judge(article: dict, profile: dict) -> dict:
+def is_brief(article: dict) -> bool:
+    return not article.get("read", True) and len(article["text"]) < BRIEF_CHARS
+
+
+async def ask(prompt: str, schema: dict, max_tokens: int = 1536) -> dict:
     # Daemons receive a fresh OIDC token in this file every few minutes, so read it per call.
     token = Path(os.environ["VERCEL_OIDC_TOKEN_FILE"]).read_text().strip()
     client = AsyncOpenAI(api_key=token, base_url="https://ai-gateway.vercel.sh/v1", max_retries=0, timeout=30)
     response = await client.chat.completions.create(
         model=LLM,
-        max_tokens=1536,  # room for the whole answer; you pay only for what the model writes
-        messages=[{
-            "role": "user",
-            "content": PROMPT.format(about=profile["about"], topics=", ".join(profile["topics"]) or "none", **article),
-        }],
-        response_format={"type": "json_schema", "json_schema": {"name": "score", "schema": answer_schema(profile["topics"])}},
+        max_tokens=max_tokens,  # room for the whole answer; you pay only for what the model writes
+        messages=[{"role": "user", "content": prompt}],
+        response_format={"type": "json_schema", "json_schema": {"name": "answer", "schema": schema}},
         # No extended thinking: Haiku 5.5 otherwise decides per article whether to think, and its
         # thinking counts toward max_tokens. On real articles that cut off half the answers, and
         # doubled the time and output cost, with no better scores.
@@ -108,6 +138,40 @@ async def judge(article: dict, profile: dict) -> dict:
     if choice.finish_reason == "length":
         raise ValueError("the answer was cut off at max_tokens")
     return json.loads(choice.message.content)
+
+
+async def judge(article: dict, profile: dict) -> dict:
+    fields = {"about": profile["about"], "topics": ", ".join(profile["topics"]) or "none", **article}
+    if is_brief(article):
+        return await ask(BRIEF_PROMPT.format(**fields), answer_schema(profile["topics"], brief=True))
+    return await ask(PROMPT.format(**fields), answer_schema(profile["topics"]))
+
+
+async def same_news(a: dict, b: dict) -> bool:
+    prompt = SAME_NEWS_PROMPT.format(a=a, b=b, a_text=a["text"][:600], b_text=b["text"][:600])
+    schema = {"type": "object", "properties": {"same": {"type": "boolean"}}, "required": ["same"], "additionalProperties": False}
+    async with llm_slots:
+        return (await ask(prompt, schema, max_tokens=64))["same"]
+
+
+async def find_coverage(conn: psycopg.AsyncConnection, article: dict) -> dict | None:
+    """Another source's readable story about the same news, for a story we only have the headline of."""
+    candidates = await fetch_all(
+        conn,
+        """
+        select id, title, source, text from articles
+        where source <> %s and length(text) >= %s
+          and published_at between %s::timestamptz - interval '3 days' and %s::timestamptz + interval '3 days'
+        """,
+        article["source"], BRIEF_CHARS, article["published_at"], article["published_at"],
+    )
+    ranked = sorted(((float(document(article) @ document(c)), c) for c in candidates), key=lambda pair: -pair[0])
+    for similarity, candidate in ranked[:3]:
+        if similarity < COVERAGE_SHORTLIST:
+            break
+        if await same_news(article, candidate):
+            return candidate
+    return None
 
 
 # Compare passages loosely: ignore spacing, case, and curly vs straight quotes.
@@ -184,12 +248,22 @@ async def score(conn: psycopg.AsyncConnection, articles: list[dict], profile: di
 
     async def score_one(article: dict) -> None:
         try:
+            # With only a headline, read another source's coverage of the same news instead, if any.
+            coverage = article.get("coverage") or (await find_coverage(conn, article) if is_brief(article) else None)
+            subject = article
+            if coverage:
+                subject = {**article, "source": f"{article['source']}, via {coverage['source']}'s coverage",
+                           "text": coverage["text"], "read": True}
             # Shared with scheduled scans, so simultaneous scan/rescore tasks also stay bounded.
             async with llm_slots:
-                result = await judge(article, profile)
+                result = await judge(subject, profile)
             topics = [topic for topic in result.get("topics", []) if topic in profile["topics"]]
             # Show a passage as a quote only if the article really says it.
-            points = [point for point in result["points"][:3] if squash(point["quote"]) in squash(article["text"])]
+            points = [p for p in result.get("points", [])[:3] if squash(p["quote"]) in squash(subject["text"])]
+            if is_brief(article):  # remember the coverage, or that there's none yet
+                await conn.execute(
+                    "update articles set covered_by = %s where id = %s", (coverage and coverage["id"], article["id"])
+                )
             await conn.execute(
                 """
                 insert into scores (article_id, score, why, detail, topics, points, takeaways, reading)
@@ -199,11 +273,12 @@ async def score(conn: psycopg.AsyncConnection, articles: list[dict], profile: di
                       points = excluded.points, takeaways = excluded.takeaways, reading = excluded.reading
                 """,
                 (
-                    article["id"], result["score"], result["why"], result["detail"].strip() or None, topics, Jsonb(points),
-                    result["takeaways"][:4], Jsonb(reading(article["text"], points)),
+                    article["id"], result["score"], result["why"], result.get("detail", "").strip() or None, topics,
+                    Jsonb(points), result.get("takeaways", [])[:4], Jsonb([] if is_brief(subject) else reading(subject["text"], points)),
                 ),
             )
-            print(f"[scorer] {result['score']:>3}  {article['title']}")
+            via = f"  (via {coverage['source']})" if coverage else "  (headline only)" if is_brief(article) else ""
+            print(f"[scorer] {result['score']:>3}  {article['title']}{via}")
         except Exception as error:  # one bad story must not stop this or later batches
             print(f"[scorer] couldn't score {article['title']}: {error!r}")
 
@@ -224,7 +299,7 @@ async def scan() -> None:
                 insert into articles (id, url, title, source, published_at, text)
                 values (%s, %s, %s, %s, %s, %s)
                 on conflict do nothing
-                returning id, url, title, source, text
+                returning id, url, title, source, text, published_at, false as read
                 """,
                 story.id, story.url, story.title, story.source, story.published_at, story.text,
             )
@@ -244,7 +319,7 @@ async def scan() -> None:
               limit %s
               for update skip locked
             )
-            returning id, url, title, source, text
+            returning id, url, title, source, text, published_at, false as read
             """,
             READ_ATTEMPTS, [article["id"] for article in new], READ_BATCH_SIZE,
         )
@@ -255,16 +330,41 @@ async def scan() -> None:
                 print(f"[scorer] couldn't read {article['url']}; keeping the feed's summary for now")
                 continue
             await conn.execute(
-                "update articles set text = %s, image = %s, description = %s, author = %s, read_at = now() where id = %s",
+                """update articles set text = %s, image = %s, description = %s, author = %s, read_at = now(),
+                     covered_by = null where id = %s""",
                 (page["text"], page["image"], page["description"], page["author"], article["id"]),
             )
-            read[article["id"]] = {**article, "text": page["text"]}
+            read[article["id"]] = {**article, "text": page["text"], "read": True}
 
         # Score the new articles, and rescore older ones whose page we could finally read.
         to_score = [read.pop(article["id"], article) for article in new] + list(read.values())
         print(f"[scorer] scanned {len(stories)} stories, {len(new)} new, {len(read)} read again")
         if to_score:
             await score(conn, to_score)
+            await cover_headlines(conn, [article for article in to_score if not is_brief(article)])
+
+
+async def cover_headlines(conn: psycopg.AsyncConnection, readable: list[dict]) -> None:
+    """Coverage often comes later: OpenAI announces, then The Verge writes it up. When a new readable story
+    matches a recent headline-only one from another source, rescore that one from the coverage."""
+    waiting = await fetch_all(
+        conn,
+        """
+        select id, title, source, text, published_at, false as read from articles
+        where read_at is null and length(text) < %s and covered_by is null
+          and published_at > now() - interval '3 days' and source in (select name from feeds where enabled)
+        """,
+        BRIEF_CHARS,
+    )
+    covered = []
+    for article in waiting:
+        if any(r["source"] != article["source"] and float(document(article) @ document(r)) >= COVERAGE_SHORTLIST
+               for r in readable):
+            if coverage := await find_coverage(conn, article):
+                covered.append({**article, "coverage": coverage})
+    if covered:
+        print(f"[scorer] found coverage for {len(covered)} headline-only stories")
+        await score(conn, covered)
 
 
 @subscribe(topic="rescore", consumer_group="scorer")
@@ -291,10 +391,14 @@ async def rescore_pending() -> None:
         print("[scorer] admitted a changed profile; rescoring recent articles")
         articles = await fetch_all(
             conn,
-            """select id, title, source, text from articles
-               where published_at > now() - interval '3 days'
-                 and source in (select name from feeds where enabled)
-               order by published_at desc, id limit %s""",
+            """select a.id, a.title, a.source, a.text, a.published_at, a.read_at is not null as read,
+                      case when c.id is null then null
+                           else json_build_object('id', c.id, 'title', c.title, 'source', c.source, 'text', c.text)
+                      end as coverage
+               from articles a left join articles c on c.id = a.covered_by
+               where a.published_at > now() - interval '3 days'
+                 and a.source in (select name from feeds where enabled)
+               order by a.published_at desc, a.id limit %s""",
             RESCORE_BATCH_SIZE,
         )
         await score(conn, articles, claimed[0])
