@@ -86,3 +86,39 @@ body {
     block-size: auto;
   }
 }
+
+/* X-ray: your feed zooms out into place, then each note fades in and its line draws toward the
+   part it explains. Plays each time the slide comes into view. */
+.xray-feed li:first-child [data-xray] {
+  outline: 1px dashed var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .xray-note {
+    opacity: 0;
+  }
+  .xray-line {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  [data-active] .xray-zoom {
+    transform-origin: top center;
+    animation: xray-zoom 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  [data-active] .xray-note {
+    animation: play-in 0.4s 0.7s both;
+  }
+  [data-active] .xray-line {
+    animation: xray-draw 0.5s calc(0.9s + var(--i) * 0.12s) ease-out both;
+  }
+}
+@keyframes xray-zoom {
+  from {
+    transform: scale(1.35);
+  }
+}
+@keyframes xray-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}

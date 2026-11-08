@@ -1,7 +1,13 @@
 // Everything X-ray mode and the How it works page say about Vercel, in one place.
 // Each part: what it does in Signal, why it's good, and where to learn more.
 
-export type Part = { name: string; what: string; why: string; href: string };
+export type Part = {
+  name: string;
+  what: string;
+  why: string;
+  href: string;
+  logo?: { src: string; width: number; height: number }; // from public/logos, black on transparent
+};
 
 export const parts = {
   cdn: {
@@ -15,6 +21,7 @@ export const parts = {
     what: "This page renders on the server for every request, reading straight from Postgres. Saving your interests runs a Server Action, a server function called right from the form.",
     why: "You write React; Vercel runs the server parts on Fluid Compute, which scales with traffic, reuses warm instances, and bills for active CPU, not idle time.",
     href: "https://vercel.com/docs/fluid-compute",
+    logo: { src: "/logos/nextjs.png", width: 300, height: 64 },
   },
   neon: {
     name: "Neon Postgres, from the Marketplace",
@@ -45,12 +52,14 @@ export const parts = {
     what: "Relevant articles are scored by an LLM through AI Gateway. The daemon signs in with its deployment's OIDC token, so there's no API key.",
     why: "One endpoint for hundreds of models, with spend tracking, fallbacks, and no provider keys to rotate.",
     href: "https://vercel.com/docs/ai-gateway",
+    logo: { src: "/logos/ai-gateway.png", width: 338, height: 64 },
   },
   agent: {
     name: "An eve agent",
     what: "Ask Signal, in the corner of every page, is an eve agent: instructions, tools that read Vercel's docs and the stories in your feed, and a chat channel, all files in agent/. It deploys as its own service in this project.",
     why: "Conversations are durable and survive restarts, every run is traced in Agent Runs, and it ships with the same git push.",
     href: "https://eve.dev/docs",
+    logo: { src: "/logos/eve.png", width: 204, height: 64 },
   },
   services: {
     name: "Vercel Services",
