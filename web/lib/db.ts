@@ -15,8 +15,10 @@ export type FeedItem = {
   title: string;
   source: string;
   published_at: string;
-  score: number | null; // null until the scorer has judged it
+  status: "scored" | "no-match" | "pending"; // no-match: the quick check said skip it; pending: not checked yet
+  score: number | null;
   why: string | null;
+  topics: string[]; // private profile matches; empty for anonymous visitors
   // The preview you see when you expand a story. Null when the site blocks readers.
   image: string | null;
   description: string | null;
@@ -77,18 +79,42 @@ export async function setSourceEnabled(name: string, enabled: boolean) {
 
 export type Sort = "relevance" | "latest";
 
-export async function getFeed(sort: Sort): Promise<FeedItem[]> {
-  // Relevance ranks the past week by score. Stories without one, which didn't match your
-  // interests, come last.
+// The filter is "no-match" or a topic; null shows everything.
+export async function getFeed(sort: Sort, filter: string | null): Promise<FeedItem[]> {
+  const owner = isProfileOwner((await headers()).get("authorization"));
+  // Do not let anonymous callers guess saved interests through filtered results.
+  // Enforce this here, not just in the page's list of filter chips.
+  if (!owner && filter !== "no-match") filter = null;
+
+  // Relevance ranks the past week by score. Stories without one come last.
   const rows = await sql`
     select a.id, a.url, a.title, a.source, a.published_at, s.score, s.why,
+      case when s.article_id is null then 'pending' when s.score is null then 'no-match' else 'scored' end as status,
+      case when ${owner} then coalesce(s.topics, '{}') else '{}'::text[] end as topics,
       a.image, a.description, a.author, left(a.text, 600) as excerpt
     from articles a
     left join scores s on s.article_id = a.id
     where a.source in (select name from feeds where enabled)
       and (${sort} = 'latest' or a.published_at > now() - interval '7 days')
+      and (${filter}::text is null
+        or (${filter} = 'no-match' and s.article_id is not null and s.score is null)
+        or (${owner} and ${filter} = any(s.topics)))
     order by case when ${sort} = 'relevance' then s.score end desc nulls last, a.published_at desc
     limit 50
   `;
   return rows as FeedItem[];
+}
+
+// These are exact saved profile labels, even though they are stored on scored stories.
+// Only the owner may enumerate them; anonymous feeds retain All / No match filters.
+export async function getFeedTopics(): Promise<string[]> {
+  if (!isProfileOwner((await headers()).get("authorization"))) return [];
+  const rows = await sql`
+    select distinct unnest(s.topics) as topic
+    from scores s
+    join articles a on a.id = s.article_id
+    where a.published_at > now() - interval '7 days' and a.source in (select name from feeds where enabled)
+    order by topic
+  `;
+  return rows.map((row) => row.topic as string);
 }

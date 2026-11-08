@@ -7,11 +7,13 @@ export default defineTool({
   inputSchema: z.object({}),
   async execute() {
     const sql = neon(process.env.DATABASE_URL!);
+    // The guide is anonymous: profile-derived topic matches are owner-only.
     const stories = await sql`
       select a.id, a.title, a.source, a.published_at, s.score, s.why
       from articles a
       join scores s on s.article_id = a.id
-      where a.published_at > now() - interval '7 days'
+      where s.score is not null
+        and a.published_at > now() - interval '7 days'
         and a.source in (select name from feeds where enabled)
       order by s.score desc
       limit 20

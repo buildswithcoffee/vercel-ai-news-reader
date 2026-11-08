@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import Link from "next/link";
-import { getFeed, getProfile, type FeedItem, type Sort } from "@/lib/db";
+import { getFeed, getFeedTopics, getProfile, type FeedItem, type Sort } from "@/lib/db";
 import { timeAgo } from "@/lib/time";
 import { AutoRefresh } from "./auto-refresh";
 import { AskAbout } from "./guide";
@@ -11,12 +11,28 @@ const SORTS: { value: Sort; label: string }[] = [
   { value: "latest", label: "Latest" },
 ];
 
+// The sort and filter live in the URL, so every view is a link you can share.
+function feedUrl(sort: Sort, filter: string | null) {
+  const params = new URLSearchParams();
+  if (sort !== "relevance") params.set("sort", sort);
+  if (filter) params.set("filter", filter);
+  return params.size ? `/?${params}` : "/";
+}
+
 export default async function FeedPage({ searchParams }: PageProps<"/">) {
   await connection(); // render on every request; the feed changes as the scorer writes
   if (!(await getProfile())) redirect("/interests");
 
-  const sort: Sort = (await searchParams).sort === "latest" ? "latest" : "relevance";
-  const feed = await getFeed(sort);
+  const params = await searchParams;
+  const sort: Sort = params.sort === "latest" ? "latest" : "relevance";
+  const topics = await getFeedTopics();
+  const filters = [
+    { value: null, label: "All" },
+    ...topics.map((topic) => ({ value: topic, label: topic })),
+    { value: "no-match", label: "No match" },
+  ];
+  const filter = filters.find(({ value }) => value === params.filter)?.value ?? null;
+  const feed = await getFeed(sort, filter);
 
   return (
     <section>
@@ -24,9 +40,21 @@ export default async function FeedPage({ searchParams }: PageProps<"/">) {
         {SORTS.map(({ value, label }) => (
           <Link
             key={value}
-            href={value === "relevance" ? "/" : `/?sort=${value}`}
+            href={feedUrl(value, filter)}
             aria-current={sort === value ? "page" : undefined}
             className="rounded-md px-3 py-1.5 text-muted hover:text-foreground aria-[current=page]:bg-background aria-[current=page]:text-foreground aria-[current=page]:shadow-sm"
+          >
+            {label}
+          </Link>
+        ))}
+      </nav>
+      <nav aria-label="Filter" className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 text-sm [scrollbar-width:none]">
+        {filters.map(({ value, label }) => (
+          <Link
+            key={label}
+            href={feedUrl(sort, value)}
+            aria-current={filter === value ? "page" : undefined}
+            className="shrink-0 rounded-full border border-line px-3 py-1 whitespace-nowrap text-muted hover:text-foreground aria-[current=page]:border-accent aria-[current=page]:bg-accent aria-[current=page]:text-white"
           >
             {label}
           </Link>
@@ -37,7 +65,7 @@ export default async function FeedPage({ searchParams }: PageProps<"/">) {
 
       {feed.length === 0 ? (
         <p className="mt-10 rounded-xl border border-dashed border-line p-10 text-center text-muted">
-          Scanning the news…
+          {filter ? "No stories here yet." : "Scanning the news…"}
         </p>
       ) : (
         <ol className="mt-8 space-y-4">
@@ -57,17 +85,11 @@ function Story({ item }: { item: FeedItem }) {
     <li>
       <details name="story" className="rounded-xl border border-line">
         <summary className="flex cursor-pointer list-none gap-4 p-5 hover:bg-surface/50 [&::-webkit-details-marker]:hidden">
-          <span
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface font-semibold ${
-              item.score === null ? "text-muted" : ""
-            }`}
-          >
-            {item.score ?? "–"}
-          </span>
+          <Badge item={item} />
           <div className="min-w-0">
             <h2 className="font-medium">{item.title}</h2>
             <p className="mt-1 text-xs text-muted">
-              {item.source} · {timeAgo(item.published_at)}
+              {[item.source, timeAgo(item.published_at), ...item.topics].join(" · ")}
             </p>
             {item.why && (
               <p className="mt-3 rounded-md bg-surface px-3 py-2 text-sm">
@@ -103,5 +125,20 @@ function Story({ item }: { item: FeedItem }) {
         </div>
       </details>
     </li>
+  );
+}
+
+// A score, or why there isn't one: the quick check said it's not a match, or it hasn't been checked yet.
+function Badge({ item }: { item: FeedItem }) {
+  const label = { scored: String(item.score), "no-match": "No match", pending: "…" }[item.status];
+  return (
+    <span
+      title={item.status === "pending" ? "Not scored yet" : undefined}
+      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface text-center ${
+        item.status === "scored" ? "font-semibold" : "text-[10px] leading-tight text-muted"
+      }`}
+    >
+      {label}
+    </span>
   );
 }
