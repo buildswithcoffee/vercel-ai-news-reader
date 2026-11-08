@@ -125,6 +125,8 @@ def js_index(text: str, index: int) -> int:
 # the rest of the article stays at the source.
 def reading(text: str, points: list[dict]) -> list[dict]:
     paragraphs = [paragraph.strip() for paragraph in text.split("\n") if paragraph.strip()]
+    if not paragraphs:
+        return []
     shown = {0: None, 1: None} if len(paragraphs) > 1 else {0: None}
     for point in points:
         for index, paragraph in enumerate(paragraphs):
@@ -172,30 +174,29 @@ async def score(conn: psycopg.AsyncConnection, articles: list[dict], profile: di
         )
 
     async def score_one(article: dict) -> None:
-        # Shared with scheduled scans, so simultaneous scan/rescore tasks also stay bounded.
-        async with llm_slots:
-            try:
+        try:
+            # Shared with scheduled scans, so simultaneous scan/rescore tasks also stay bounded.
+            async with llm_slots:
                 result = await judge(article, profile)
-            except Exception as error:  # one bad answer shouldn't stop the rest of the batch
-                print(f"[scorer] couldn't score {article['title']}: {error!r}")
-                return
-        topics = [topic for topic in result.get("topics", []) if topic in profile["topics"]]
-        # Show a passage as a quote only if the article really says it.
-        points = [point for point in result["points"][:3] if squash(point["quote"]) in squash(article["text"])]
-        await conn.execute(
-            """
-            insert into scores (article_id, score, why, topics, points, takeaways, reading)
-            values (%s, %s, %s, %s, %s, %s, %s)
-            on conflict (article_id) do update
-              set score = excluded.score, why = excluded.why, topics = excluded.topics, points = excluded.points,
-                  takeaways = excluded.takeaways, reading = excluded.reading
-            """,
-            (
-                article["id"], result["score"], result["why"], topics, Jsonb(points),
-                result["takeaways"][:4], Jsonb(reading(article["text"], points)),
-            ),
-        )
-        print(f"[scorer] {result['score']:>3}  {article['title']}")
+            topics = [topic for topic in result.get("topics", []) if topic in profile["topics"]]
+            # Show a passage as a quote only if the article really says it.
+            points = [point for point in result["points"][:3] if squash(point["quote"]) in squash(article["text"])]
+            await conn.execute(
+                """
+                insert into scores (article_id, score, why, topics, points, takeaways, reading)
+                values (%s, %s, %s, %s, %s, %s, %s)
+                on conflict (article_id) do update
+                  set score = excluded.score, why = excluded.why, topics = excluded.topics, points = excluded.points,
+                      takeaways = excluded.takeaways, reading = excluded.reading
+                """,
+                (
+                    article["id"], result["score"], result["why"], topics, Jsonb(points),
+                    result["takeaways"][:4], Jsonb(reading(article["text"], points)),
+                ),
+            )
+            print(f"[scorer] {result['score']:>3}  {article['title']}")
+        except Exception as error:  # one bad story must not stop this or later batches
+            print(f"[scorer] couldn't score {article['title']}: {error!r}")
 
     # Bound task creation as well as in-flight requests.
     for offset in range(0, len(relevant), LLM_CONCURRENCY):
