@@ -26,7 +26,8 @@ export type FeedItem = {
   published_at: string;
   status: "scored" | "no-match" | "pending"; // no-match: the quick check said skip it; pending: not checked yet
   score: number | null;
-  why: string | null;
+  why: string | null; // one line, shown on the card
+  detail: string | null; // the rest of why it matters, shown when the story is open
   topics: string[]; // private profile matches; empty for anonymous visitors
   takeaways: string[]; // 2 to 4 bullets, shown when the story is open
   reading: Paragraph[]; // the article as the open story shows it; empty until scored
@@ -93,6 +94,9 @@ export async function setEnabledSources(names: string[]) {
 
 export type Sort = "relevance" | "latest";
 
+// The opening shown for stories without a reading view yet (not scored, or scored before it existed).
+export const EXCERPT_CHARS = 600;
+
 // The filter is "no-match" or a topic; null shows everything.
 export async function getFeed(sort: Sort, filter: string | null): Promise<FeedItem[]> {
   const owner = await isOwner();
@@ -102,11 +106,11 @@ export async function getFeed(sort: Sort, filter: string | null): Promise<FeedIt
 
   // Relevance ranks the past week by score. Stories without one come last.
   const rows = await sql`
-    select a.id, a.url, a.title, a.source, a.published_at, s.score, s.why,
+    select a.id, a.url, a.title, a.source, a.published_at, s.score, s.why, s.detail,
       case when s.article_id is null then 'pending' when s.score is null then 'no-match' else 'scored' end as status,
       case when ${owner} then coalesce(s.topics, '{}') else '{}'::text[] end as topics,
       coalesce(s.takeaways, '{}') as takeaways, coalesce(s.reading, '[]') as reading,
-      a.image, a.description, a.author, left(a.text, 600) as excerpt
+      a.image, a.description, a.author, left(a.text, ${EXCERPT_CHARS}) as excerpt
     from articles a
     left join scores s on s.article_id = a.id
     where a.source in (select name from feeds where enabled)

@@ -20,6 +20,7 @@ def answer():
     return {
         "score": 80,
         "why": "Relevant news",
+        "detail": "",
         "topics": ["AI", "unknown"],
         "points": [{"quote": "Useful news", "note": "Worth reading"}],
         "takeaways": ["A useful update"],
@@ -74,9 +75,10 @@ class ScoringChecks(unittest.IsolatedAsyncioTestCase):
         rows = {call.args[1][0]: call.args[1] for call in self.conn.execute.await_args_list}
         self.assertEqual(set(rows), {"0", "1", "2", "3", "4"})
         for article_id in ("0", "1"):
-            self.assertEqual(rows[article_id][6].obj, [])
-        self.assertEqual(rows["2"][3], ["AI"])
-        self.assertEqual(rows["2"][6].obj[0]["text"], "Useful news")
+            self.assertEqual(rows[article_id][7].obj, [])
+        self.assertIsNone(rows["2"][3])  # an empty detail is stored as no detail
+        self.assertEqual(rows["2"][4], ["AI"])
+        self.assertEqual(rows["2"][7].obj[0]["text"], "Useful news")
 
     async def assert_isolated(self):
         await worker.score(self.conn, articles(), PROFILE)

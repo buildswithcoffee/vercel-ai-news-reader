@@ -41,8 +41,10 @@ Topics they follow: {topics}
 Headline: {title} ({source})
 Article (may be cut short): {text}
 
-Rate from 0 to 100 how much this story matters to them. Then explain why in one sentence of at
-most 30 words, speaking to them as "you". If they follow topics, list the ones this story is about.
+Rate from 0 to 100 how much this story matters to them. Then explain why in one line of at most
+25 words, speaking to them as "you". If there's more worth saying, add 2 or 3 sentences (at most 60
+words) with the rest of why it matters to them; otherwise leave that empty. If they follow topics,
+list the ones this story is about.
 
 Then list 2 to 4 key takeaways from the article, each at most 15 words.
 
@@ -55,6 +57,7 @@ def answer_schema(topics: list[str]) -> dict:
     properties = {
         "score": {"type": "integer"},
         "why": {"type": "string"},
+        "detail": {"type": "string"},
         "takeaways": {"type": "array", "items": {"type": "string"}},
         "points": {
             "type": "array",
@@ -183,14 +186,14 @@ async def score(conn: psycopg.AsyncConnection, articles: list[dict], profile: di
             points = [point for point in result["points"][:3] if squash(point["quote"]) in squash(article["text"])]
             await conn.execute(
                 """
-                insert into scores (article_id, score, why, topics, points, takeaways, reading)
-                values (%s, %s, %s, %s, %s, %s, %s)
+                insert into scores (article_id, score, why, detail, topics, points, takeaways, reading)
+                values (%s, %s, %s, %s, %s, %s, %s, %s)
                 on conflict (article_id) do update
-                  set score = excluded.score, why = excluded.why, topics = excluded.topics, points = excluded.points,
-                      takeaways = excluded.takeaways, reading = excluded.reading
+                  set score = excluded.score, why = excluded.why, detail = excluded.detail, topics = excluded.topics,
+                      points = excluded.points, takeaways = excluded.takeaways, reading = excluded.reading
                 """,
                 (
-                    article["id"], result["score"], result["why"], topics, Jsonb(points),
+                    article["id"], result["score"], result["why"], result["detail"].strip() or None, topics, Jsonb(points),
                     result["takeaways"][:4], Jsonb(reading(article["text"], points)),
                 ),
             )

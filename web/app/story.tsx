@@ -1,12 +1,12 @@
 import { refresh } from "next/cache";
-import { addFollowUp, type FeedItem, type Paragraph } from "@/lib/db";
+import { EXCERPT_CHARS, addFollowUp, type FeedItem, type Paragraph } from "@/lib/db";
 import { followUpsFlag } from "@/flags";
 import { timeAgo } from "@/lib/time";
 import { AskAbout } from "./guide";
 
-// Each story opens like a drawer: key takeaways, the photo and the publisher's summary, then the
-// opening of the article and each paragraph Signal flagged, with its note in the margin. The rest
-// of the article stays at the source, one click away.
+// Each story opens like a drawer: the rest of why it matters and its key takeaways, the photo and
+// the publisher's summary, then the opening of the article and each paragraph Signal flagged, with
+// its note in the margin. The rest of the article stays at the source, one click away.
 const FOLLOW_UPS = ["Tell my team about this", "Read the full story later", "Bring this up in our next meeting"];
 
 async function followUp(formData: FormData) {
@@ -39,24 +39,24 @@ export function Story({ item, followUps = false }: { item: FeedItem; followUps?:
         </summary>
 
         <div className="grid gap-x-8 gap-y-5 px-5 pb-6 sm:pl-20 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          {item.takeaways.length > 0 && (
-            <div className="rounded-lg bg-surface p-4 text-sm lg:col-start-2 lg:row-start-1 lg:self-start">
-              <p className="text-xs font-medium uppercase tracking-wide text-accent">Key takeaways</p>
-              <ul className="mt-2 list-disc space-y-1.5 pl-4">
-                {item.takeaways.map((takeaway) => (
-                  <li key={takeaway}>{takeaway}</li>
-                ))}
-              </ul>
+          {(item.detail || item.takeaways.length > 0) && (
+            <div className="space-y-3 rounded-md bg-surface px-3 py-3 text-sm lg:col-span-2">
+              {item.detail && <p>{item.detail}</p>}
+              {item.takeaways.length > 0 && (
+                <ul className="list-disc space-y-1 pl-4">
+                  {item.takeaways.map((takeaway) => (
+                    <li key={takeaway}>{takeaway}</li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
-          <div className="space-y-4 lg:col-start-1 lg:row-start-1">
-            {item.image && <Photo src={item.image} className="aspect-video w-full rounded-lg" />}
-            {item.description && <p className="text-lg leading-snug">{item.description}</p>}
-          </div>
+          {item.image && <Photo src={item.image} className="aspect-video w-full rounded-lg" />}
+          {item.description && <p className="text-lg leading-snug lg:self-center">{item.description}</p>}
 
-          {item.reading.length > 0
-            ? item.reading.map((paragraph, index) => <Passage key={index} paragraph={paragraph} />)
-            : item.excerpt.split("\n").map((text, index) => <Passage key={index} paragraph={{ text, gap: false }} />)}
+          {(item.reading.length > 0 ? item.reading : opening(item.excerpt)).map((paragraph, index) => (
+            <Passage key={index} paragraph={paragraph} />
+          ))}
 
           <div className="flex flex-wrap items-center gap-3 pt-2 lg:col-span-2">
             <AskAbout
@@ -98,6 +98,13 @@ export function Story({ item, followUps = false }: { item: FeedItem; followUps?:
       </details>
     </li>
   );
+}
+
+// The excerpt as whole paragraphs: drop the last one if the excerpt cut it off.
+function opening(excerpt: string): Paragraph[] {
+  const paragraphs = excerpt.split("\n").filter((text) => text.trim());
+  if (excerpt.length >= EXCERPT_CHARS && paragraphs.length > 1) paragraphs.pop();
+  return paragraphs.map((text) => ({ text, gap: false }));
 }
 
 // One paragraph of the article, with its key passage marked and Signal's note beside it (below it
