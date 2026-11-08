@@ -93,3 +93,11 @@ create table if not exists follow_ups (
   created_at timestamptz not null default now()
 );
 alter table scores add column if not exists detail text;  -- the rest of why it matters, shown when the story is open
+
+-- Whether the scorer has read the article's page (read_at), or so far has only the feed's summary.
+-- Pages that fail are retried a few times (read_attempts).
+alter table articles add column if not exists read_at timestamptz;
+alter table articles add column if not exists read_attempts integer not null default 0;
+-- Articles saved before read_at existed: page details (photo, summary) mean the page was read.
+update articles set read_at = published_at
+where read_at is null and read_attempts = 0 and (image is not null or description is not null);

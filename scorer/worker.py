@@ -24,6 +24,8 @@ from articles import read_article
 from sources import fetch_stories
 
 SCAN_EVERY_SECONDS = 15 * 60
+READ_ATTEMPTS = 3  # tries at reading an article's page before keeping its feed summary
+READ_BATCH_SIZE = 100
 RESCORE_BATCH_SIZE = 100
 LLM_CONCURRENCY = 4
 llm_slots = asyncio.Semaphore(LLM_CONCURRENCY)
@@ -223,18 +225,42 @@ async def scan() -> None:
                 story.id, story.url, story.title, story.source, story.published_at, story.text,
             )
 
-        pages = await asyncio.gather(*(read_article(article["url"]) for article in new))
-        for article, page in zip(new, pages):
-            if page:  # otherwise keep the feed's excerpt
-                await conn.execute(
-                    "update articles set text = %s, image = %s, description = %s, author = %s where id = %s",
-                    (page["text"], page["image"], page["description"], page["author"], article["id"]),
-                )
-                article["text"] = page["text"]
+        # Read the page of each new article, and retry recent ones whose page failed before (the
+        # site was slow, down, or blocked us), so one bad moment doesn't leave a story judged on its
+        # feed summary forever. Claiming a read counts the attempt, so instances never double up.
+        claimed = await fetch_all(
+            conn,
+            """
+            update articles set read_attempts = read_attempts + 1
+            where id in (
+              select id from articles
+              where read_at is null and read_attempts < %s
+                and (id = any(%s) or published_at > now() - interval '7 days')
+              order by read_attempts, published_at desc
+              limit %s
+              for update skip locked
+            )
+            returning id, url, title, source, text
+            """,
+            READ_ATTEMPTS, [article["id"] for article in new], READ_BATCH_SIZE,
+        )
+        pages = await asyncio.gather(*(read_article(article["url"]) for article in claimed))
+        read = {}
+        for article, page in zip(claimed, pages):
+            if not page:
+                print(f"[scorer] couldn't read {article['url']}; keeping the feed's summary for now")
+                continue
+            await conn.execute(
+                "update articles set text = %s, image = %s, description = %s, author = %s, read_at = now() where id = %s",
+                (page["text"], page["image"], page["description"], page["author"], article["id"]),
+            )
+            read[article["id"]] = {**article, "text": page["text"]}
 
-        print(f"[scorer] scanned {len(stories)} stories, {len(new)} new")
-        if new:
-            await score(conn, new)
+        # Score the new articles, and rescore older ones whose page we could finally read.
+        to_score = [read.pop(article["id"], article) for article in new] + list(read.values())
+        print(f"[scorer] scanned {len(stories)} stories, {len(new)} new, {len(read)} read again")
+        if to_score:
+            await score(conn, to_score)
 
 
 @subscribe(topic="rescore", consumer_group="scorer")
