@@ -6,6 +6,7 @@
 
 import asyncio
 import json
+import re
 import os
 import signal
 from functools import lru_cache
@@ -43,6 +44,8 @@ Article (may be cut short): {text}
 Rate from 0 to 100 how much this story matters to them. Then explain why in one sentence of at
 most 30 words, speaking to them as "you". If they follow topics, list the ones this story is about.
 
+Then list 2 to 4 key takeaways from the article, each at most 15 words.
+
 Then pick up to 3 key points. For each, copy a short passage from the article word for word (at
 most 25 words), and add a note of at most 20 words on what it means for them.
 Use only what the article says; don't invent details."""
@@ -52,6 +55,7 @@ def answer_schema(topics: list[str]) -> dict:
     properties = {
         "score": {"type": "integer"},
         "why": {"type": "string"},
+        "takeaways": {"type": "array", "items": {"type": "string"}},
         "points": {
             "type": "array",
             "items": {
@@ -84,7 +88,7 @@ async def judge(article: dict, profile: dict) -> dict:
     client = AsyncOpenAI(api_key=token, base_url="https://ai-gateway.vercel.sh/v1", max_retries=0, timeout=30)
     response = await client.chat.completions.create(
         model=LLM,
-        max_tokens=1024,  # room for the answer and its key points; you pay only for what the model writes
+        max_tokens=1536,  # room for the whole answer; you pay only for what the model writes
         messages=[{
             "role": "user",
             "content": PROMPT.format(about=profile["about"], topics=", ".join(profile["topics"]) or "none", **article),
@@ -98,8 +102,40 @@ async def judge(article: dict, profile: dict) -> dict:
 
 
 # Compare passages loosely: ignore spacing, case, and curly vs straight quotes.
+STRAIGHT_QUOTES = str.maketrans("‘’“”", "''\"\"")
+
+
 def squash(text: str) -> str:
-    return " ".join(text.translate(str.maketrans("‘’“”", "''\"\"")).split()).lower()
+    return " ".join(text.translate(STRAIGHT_QUOTES).split()).lower()
+
+
+def find(passage: str, paragraph: str) -> re.Match | None:
+    # The same loose match, as a span of the original paragraph (the translation keeps its length).
+    words = (re.escape(word) for word in passage.translate(STRAIGHT_QUOTES).split())
+    return re.search(r"\s+".join(words), paragraph.translate(STRAIGHT_QUOTES), re.IGNORECASE)
+
+
+# The web app slices strings in UTF-16 code units, where an emoji counts as two.
+def js_index(text: str, index: int) -> int:
+    return len(text[:index].encode("utf-16-le")) // 2
+
+
+# What the open story shows of the article: the first two paragraphs, plus each paragraph that holds
+# a key passage, marked, with Signal's note. "gap" means paragraphs were skipped before this one;
+# the rest of the article stays at the source.
+def reading(text: str, points: list[dict]) -> list[dict]:
+    paragraphs = [paragraph.strip() for paragraph in text.split("\n") if paragraph.strip()]
+    shown = {0: None, 1: None} if len(paragraphs) > 1 else {0: None}
+    for point in points:
+        for index, paragraph in enumerate(paragraphs):
+            if (match := find(point["quote"], paragraph)) and not shown.get(index):
+                shown[index] = {"mark": [js_index(paragraph, match.start()), js_index(paragraph, match.end())], "note": point["note"]}
+                break
+    view, previous = [], -1
+    for index in sorted(shown):
+        view.append({"text": paragraphs[index], "gap": index > previous + 1, **(shown[index] or {})})
+        previous = index
+    return view
 
 
 def connect():
@@ -148,11 +184,16 @@ async def score(conn: psycopg.AsyncConnection, articles: list[dict], profile: di
         points = [point for point in result["points"][:3] if squash(point["quote"]) in squash(article["text"])]
         await conn.execute(
             """
-            insert into scores (article_id, score, why, topics, points) values (%s, %s, %s, %s, %s)
+            insert into scores (article_id, score, why, topics, points, takeaways, reading)
+            values (%s, %s, %s, %s, %s, %s, %s)
             on conflict (article_id) do update
-              set score = excluded.score, why = excluded.why, topics = excluded.topics, points = excluded.points
+              set score = excluded.score, why = excluded.why, topics = excluded.topics, points = excluded.points,
+                  takeaways = excluded.takeaways, reading = excluded.reading
             """,
-            (article["id"], result["score"], result["why"], topics, Jsonb(points)),
+            (
+                article["id"], result["score"], result["why"], topics, Jsonb(points),
+                result["takeaways"][:4], Jsonb(reading(article["text"], points)),
+            ),
         )
         print(f"[scorer] {result['score']:>3}  {article['title']}")
 
