@@ -10,8 +10,10 @@
     "db:migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
+    "@flags-sdk/vercel": "^1.6.0",
     "@neondatabase/serverless": "^1.2.0",
     "eve": "1.0.0-rc.6",
+    "flags": "^4.4.0",
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",

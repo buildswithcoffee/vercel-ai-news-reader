@@ -1,11 +1,23 @@
-import type { FeedItem, Paragraph } from "@/lib/db";
+import { refresh } from "next/cache";
+import { addFollowUp, type FeedItem, type Paragraph } from "@/lib/db";
+import { followUpsFlag } from "@/flags";
 import { timeAgo } from "@/lib/time";
 import { AskAbout } from "./guide";
 
 // Each story opens like a drawer: key takeaways, the photo and the publisher's summary, then the
 // opening of the article and each paragraph Signal flagged, with its note in the margin. The rest
 // of the article stays at the source, one click away.
-export function Story({ item }: { item: FeedItem }) {
+const FOLLOW_UPS = ["Tell my team about this", "Read the full story later", "Bring this up in our next meeting"];
+
+async function followUp(formData: FormData) {
+  "use server";
+  if (!(await followUpsFlag())) throw new Error("Follow-ups are turned off");
+  await addFollowUp(String(formData.get("article")), String(formData.get("preset") ?? formData.get("task") ?? ""));
+  refresh();
+}
+
+// `followUps`: show the follow-up action. The page passes it when the flag is on and you're signed in.
+export function Story({ item, followUps = false }: { item: FeedItem; followUps?: boolean }) {
   return (
     <li>
       <details name="story" className="drawer group rounded-xl border border-line">
@@ -61,6 +73,27 @@ export function Story({ item }: { item: FeedItem }) {
             </a>
             {item.author && <span className="text-sm text-muted">By {item.author}</span>}
           </div>
+
+          {followUps && (
+            <form action={followUp} className="flex flex-wrap items-center gap-2 border-t border-line pt-4 text-sm lg:col-span-2">
+              <input type="hidden" name="article" value={item.id} />
+              <span className="text-muted">Follow up:</span>
+              <input
+                name="task"
+                maxLength={200}
+                placeholder="Write your own"
+                className="min-w-40 flex-1 rounded-md border border-line bg-transparent px-3 py-1.5 outline-none focus:border-accent"
+              />
+              {/* Before the presets, so pressing Enter in the field adds what you typed. */}
+              <button className="rounded-md border border-line px-3 py-1.5 font-medium hover:border-accent">Add</button>
+              <span className="text-muted">or</span>
+              {FOLLOW_UPS.map((preset) => (
+                <button key={preset} name="preset" value={preset} className="rounded-full border border-line px-3 py-1.5 hover:border-accent">
+                  {preset}
+                </button>
+              ))}
+            </form>
+          )}
         </div>
       </details>
     </li>

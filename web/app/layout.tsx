@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
+import { countOpenFollowUps, isOwner } from "@/lib/db";
+import { followUpsFlag } from "@/flags";
 import { Guide } from "./guide";
 import { ThemeSwitch, getTheme } from "./theme";
 import "./globals.css";
@@ -37,6 +39,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             <nav className="flex gap-4 text-sm text-muted">
               <Link href="/" className="hover:text-foreground">Feed</Link>
               <Link href="/your-feed" className="hover:text-foreground">Your feed</Link>
+              <FollowUpsLink />
               <Link href="/how-it-works" className="hover:text-foreground">How it works</Link>
             </nav>
             <div className="ml-auto flex items-center gap-2">
@@ -54,5 +57,16 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         </Guide>
       </body>
     </html>
+  );
+}
+
+// Shown when the follow-ups flag is on and you're signed in, with how many are still open.
+async function FollowUpsLink() {
+  if (!(await isOwner()) || !(await followUpsFlag())) return null;
+  const open = await countOpenFollowUps();
+  return (
+    <Link href="/follow-ups" className="hover:text-foreground">
+      Follow-ups{open > 0 && <span className="ml-1 rounded-full bg-accent px-1.5 text-xs text-white">{open}</span>}
+    </Link>
   );
 }

@@ -83,3 +83,12 @@ alter table scores add column if not exists topics text[] not null default '{}';
 alter table scores add column if not exists points jsonb not null default '[]';  -- key passages, each with Signal's note
 alter table scores add column if not exists takeaways text[] not null default '{}';  -- 2 to 4 bullets for the open story
 alter table scores add column if not exists reading jsonb not null default '[]';     -- the article as the open story shows it
+
+-- Follow-ups (behind the follow-ups flag): to-dos you save from a story, like telling a coworker.
+create table if not exists follow_ups (
+  id         bigint generated always as identity primary key,
+  article_id text not null references articles (id) on delete cascade,
+  task       text not null,
+  done       boolean not null default false,
+  created_at timestamptz not null default now()
+);
