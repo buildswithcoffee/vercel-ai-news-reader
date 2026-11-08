@@ -18,7 +18,7 @@ export function Story({ item }: { item: FeedItem }) {
               {[item.source, timeAgo(item.published_at), ...item.topics].join(" · ")}
             </p>
             {item.why && (
-              <p className="mt-3 rounded-md bg-surface px-3 py-2 text-sm">
+              <p data-xray="why" className="mt-3 rounded-md bg-surface px-3 py-2 text-sm">
                 <span className="font-medium text-accent">Why it matters to you: </span>
                 {item.why}
               </p>
@@ -83,6 +83,7 @@ function Badge({ item }: { item: FeedItem }) {
   const label = { scored: String(item.score), "no-match": "No match", pending: "…" }[item.status];
   return (
     <span
+      data-xray="score"
       title={item.status === "pending" ? "Not scored yet" : undefined}
       className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface text-center ${
         item.status === "scored" ? "font-semibold" : "text-[10px] leading-tight text-muted"
