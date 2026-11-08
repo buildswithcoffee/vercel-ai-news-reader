@@ -46,31 +46,34 @@ create table if not exists feeds (
   url     text not null,     -- an RSS or Atom feed; Hacker News is read through its API
   enabled boolean not null
 );
-insert into feeds (name, url, enabled) values
-  ('Hacker News',            'https://news.ycombinator.com/',                                   true),
-  ('The Verge',              'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml', true),
-  ('TechCrunch',             'https://techcrunch.com/category/artificial-intelligence/feed/',   true),
-  ('Ars Technica',           'https://feeds.arstechnica.com/arstechnica/technology-lab',        true),
-  ('Google AI',              'https://blog.google/technology/ai/rss/',                          true),
-  ('Vercel',                 'https://vercel.com/atom',                                         true),
-  ('Hugging Face',           'https://huggingface.co/blog/feed.xml',                            true),
-  ('OpenAI',                 'https://openai.com/news/rss.xml',                                 true),
-  ('AWS re:Invent',          'https://aws.amazon.com/blogs/aws/category/events/reinvent/feed/', true),
-  ('Google DeepMind',        'https://deepmind.google/blog/rss.xml',                            false),
-  ('NVIDIA',                 'https://blogs.nvidia.com/feed/',                                  false),
-  ('GitHub',                 'https://github.blog/feed/',                                       false),
-  ('Cloudflare',             'https://blog.cloudflare.com/rss/',                                false),
-  ('Next.js',                'https://nextjs.org/feed.xml',                                     false),
-  ('AWS Machine Learning',   'https://aws.amazon.com/blogs/machine-learning/feed/',             false),
-  ('Apple Machine Learning', 'https://machinelearning.apple.com/rss.xml',                       false),
-  ('Meta Engineering',       'https://engineering.fb.com/feed/',                                false),
-  ('Databricks',             'https://www.databricks.com/feed',                                 false),
-  ('Together AI',            'https://www.together.ai/blog/rss.xml',                            false),
-  ('Simon Willison',         'https://simonwillison.net/atom/everything/',                      false),
-  ('Latent Space',           'https://www.latent.space/feed',                                   false),
-  ('Interconnects',          'https://www.interconnects.ai/feed',                               false),
-  ('Stratechery',            'https://stratechery.com/feed/',                                   false)
-on conflict (name) do nothing;
+-- The Your feed page groups sources by kind. Re-seeding updates each source's kind and URL but
+-- keeps whether you turned it on.
+alter table feeds add column if not exists kind text not null default 'News';
+insert into feeds (name, kind, url, enabled) values
+  ('Hacker News',            'News',      'https://news.ycombinator.com/',                                       true),
+  ('The Verge',              'News',      'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml',   true),
+  ('TechCrunch',             'News',      'https://techcrunch.com/category/artificial-intelligence/feed/',       true),
+  ('Ars Technica',           'News',      'https://feeds.arstechnica.com/arstechnica/technology-lab',            true),
+  ('Google AI',              'AI labs',   'https://blog.google/technology/ai/rss/',                              true),
+  ('OpenAI',                 'AI labs',   'https://openai.com/news/rss.xml',                                     true),
+  ('Google DeepMind',        'AI labs',   'https://deepmind.google/blog/rss.xml',                                false),
+  ('Apple Machine Learning', 'AI labs',   'https://machinelearning.apple.com/rss.xml',                           false),
+  ('Vercel',                 'Platforms', 'https://vercel.com/atom',                                             true),
+  ('Hugging Face',           'Platforms', 'https://huggingface.co/blog/feed.xml',                                true),
+  ('AWS re:Invent',          'Platforms', 'https://aws.amazon.com/blogs/aws/category/events/reinvent/feed/',     true),
+  ('NVIDIA',                 'Platforms', 'https://blogs.nvidia.com/feed/',                                      false),
+  ('GitHub',                 'Platforms', 'https://github.blog/feed/',                                           false),
+  ('Cloudflare',             'Platforms', 'https://blog.cloudflare.com/rss/',                                    false),
+  ('Next.js',                'Platforms', 'https://nextjs.org/feed.xml',                                         false),
+  ('AWS Machine Learning',   'Platforms', 'https://aws.amazon.com/blogs/machine-learning/feed/',                 false),
+  ('Meta Engineering',       'Platforms', 'https://engineering.fb.com/feed/',                                    false),
+  ('Databricks',             'Platforms', 'https://www.databricks.com/feed',                                     false),
+  ('Together AI',            'Platforms', 'https://www.together.ai/blog/rss.xml',                                false),
+  ('Simon Willison',         'Writers',   'https://simonwillison.net/atom/everything/',                          false),
+  ('Latent Space',           'Writers',   'https://www.latent.space/feed',                                       false),
+  ('Interconnects',          'Writers',   'https://www.interconnects.ai/feed',                                   false),
+  ('Stratechery',            'Writers',   'https://stratechery.com/feed/',                                       false)
+on conflict (name) do update set kind = excluded.kind, url = excluded.url;
 
 -- Every article the scorer checks gets a scores row. A null score means the quick check found it
 -- isn't a match, so it never went to the LLM. No row means it hasn't been checked (or scoring failed).

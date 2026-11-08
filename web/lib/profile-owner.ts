@@ -1,14 +1,30 @@
 import "server-only";
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
-// A single-reader app: use HTTP Basic over HTTPS, with username "owner" and
-// a high-entropy password. No default or public/NEXT_PUBLIC credential is allowed.
-export function isProfileOwner(authorization: string | null): boolean {
-  const key = process.env.PROFILE_EDIT_KEY;
-  if (!key || key.length < 32 || !authorization || authorization.length > 4096) return false;
-  const match = /^Basic ([A-Za-z0-9+/]+=*)$/i.exec(authorization);
-  if (!match) return false;
-  const supplied = Buffer.from(match[1], "base64");
-  const digest = (value: string | Buffer) => createHash("sha256").update(value).digest();
-  return timingSafeEqual(digest(supplied), digest(`owner:${key}`));
+// A single-reader app: the owner signs in once with PROFILE_EDIT_KEY (at least 32 characters, never
+// a public variable) and gets a cookie. The cookie holds an HMAC of a fixed label, so it proves
+// knowledge of the key without containing it, and changing the key signs every browser out.
+export const OWNER_COOKIE = "signal_owner";
+
+function key() {
+  const value = process.env.PROFILE_EDIT_KEY;
+  return value && value.length >= 32 ? value : null;
+}
+
+export function ownerSession(): string | null {
+  const secret = key();
+  return secret ? createHmac("sha256", secret).update("signal owner session").digest("base64url") : null;
+}
+
+export function isOwnerSession(cookie: string | undefined): boolean {
+  const expected = ownerSession();
+  if (!expected || !cookie || cookie.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(cookie), Buffer.from(expected));
+}
+
+export function isOwnerKey(password: string): boolean {
+  const secret = key();
+  if (!secret || password.length > 4096) return false;
+  const digest = (value: string) => createHash("sha256").update(value).digest();
+  return timingSafeEqual(digest(password), digest(secret));
 }

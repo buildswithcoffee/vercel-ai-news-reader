@@ -1,13 +1,18 @@
 import "server-only";
-import { headers } from "next/headers";
-import { isProfileOwner } from "./profile-owner";
+import { cookies } from "next/headers";
+import { OWNER_COOKIE, isOwnerSession } from "./profile-owner";
 import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.DATABASE_URL!);
 
+// Signed in with PROFILE_EDIT_KEY on this browser. Checked here, at the data, not only in the proxy.
+export async function isOwner() {
+  return isOwnerSession((await cookies()).get(OWNER_COOKIE)?.value);
+}
+
 export type Profile = { about: string; topics: string[] };
 
-export type Source = { name: string; url: string; enabled: boolean };
+export type Source = { name: string; kind: string; url: string; enabled: boolean };
 
 export type FeedItem = {
   id: string;
@@ -33,7 +38,7 @@ export async function getProfile(): Promise<Profile | null> {
 
 export async function saveProfile({ about, topics }: Profile) {
   // Server Actions are public endpoints; never rely on the page's proxy alone.
-  if (!isProfileOwner((await headers()).get("authorization"))) {
+  if (!(await isOwner())) {
     throw new Error("Unauthorized");
   }
   about = about.trim();
@@ -67,21 +72,24 @@ export async function saveProfile({ about, topics }: Profile) {
 }
 
 export async function getSources(): Promise<Source[]> {
-  return (await sql`select name, url, enabled from feeds order by enabled desc, name`) as Source[];
+  return (await sql`
+    select name, kind, url, enabled from feeds
+    order by array_position(array['News', 'AI labs', 'Platforms', 'Writers'], kind), name
+  `) as Source[];
 }
 
-export async function setSourceEnabled(name: string, enabled: boolean) {
-  if (!isProfileOwner((await headers()).get("authorization"))) {
-    throw new Error("Unauthorized");
-  }
-  await sql`update feeds set enabled = ${enabled} where name = ${name}`;
+// Turns on exactly these sources and turns off the rest.
+export async function setEnabledSources(names: string[]) {
+  if (!(await isOwner())) throw new Error("Unauthorized");
+  if (names.length > 100) throw new Error("Invalid sources");
+  await sql`update feeds set enabled = (name = any(${names}))`;
 }
 
 export type Sort = "relevance" | "latest";
 
 // The filter is "no-match" or a topic; null shows everything.
 export async function getFeed(sort: Sort, filter: string | null): Promise<FeedItem[]> {
-  const owner = isProfileOwner((await headers()).get("authorization"));
+  const owner = await isOwner();
   // Do not let anonymous callers guess saved interests through filtered results.
   // Enforce this here, not just in the page's list of filter chips.
   if (!owner && filter !== "no-match") filter = null;
@@ -108,7 +116,7 @@ export async function getFeed(sort: Sort, filter: string | null): Promise<FeedIt
 // These are exact saved profile labels, even though they are stored on scored stories.
 // Only the owner may enumerate them; anonymous feeds retain All / No match filters.
 export async function getFeedTopics(): Promise<string[]> {
-  if (!isProfileOwner((await headers()).get("authorization"))) return [];
+  if (!(await isOwner())) return [];
   const rows = await sql`
     select distinct unnest(s.topics) as topic
     from scores s
