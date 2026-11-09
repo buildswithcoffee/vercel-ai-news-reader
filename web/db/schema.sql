@@ -46,7 +46,7 @@ create table if not exists feeds (
   url     text not null,     -- an RSS or Atom feed; Hacker News is read through its API
   enabled boolean not null
 );
--- The Your feed page groups sources by kind. Re-seeding updates each source's kind and URL but
+-- The Setup page groups sources by kind. Re-seeding updates each source's kind and URL but
 -- keeps whether you turned it on.
 alter table feeds add column if not exists kind text not null default 'News';
 insert into feeds (name, kind, url, enabled) values

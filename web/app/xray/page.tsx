@@ -169,15 +169,19 @@ function PlatformSlide() {
             The site, a private Python API, the agent, and the scorer, side by side. They reach each other through
             service bindings, with no public URLs or keys between them.
           </Note>
+          <Note n={3} part="api" to="rescore">
+            Save new interests and the web app calls a FastAPI service through its binding. It has no public URL, so
+            only the web app can reach it, and it hands the rescore to a queue.
+          </Note>
         </>
       }
       right={
         <>
-          <Note n={3} part="previews" to="status">
+          <Note n={4} part="previews" to="status">
             One git push builds and deploys all four together. Every pull request gets its own preview, with its own
             copy of the database.
           </Note>
-          <Note n={4} part="observability" to="logs">
+          <Note n={5} part="observability" to="logs">
             Logs from all four land in one place, and every conversation with the guide is traced in Agent Runs.
           </Note>
         </>
@@ -185,7 +189,7 @@ function PlatformSlide() {
     >
       <div className="flex items-center justify-between gap-3">
         <span className="font-semibold tracking-tight">signal · Production</span>
-        <Target n={3} name="status">
+        <Target n={4} name="status">
           <span className="text-xs text-muted">
             <span className="text-green-600">●</span> Ready · main
           </span>
@@ -216,7 +220,19 @@ function PlatformSlide() {
         </Target>
       </div>
       <div className="mt-4">
-        <Target n={4} name="logs">
+        <Target n={3} name="rescore">
+          <span className="flex flex-wrap items-center gap-2 text-xs">
+            {["Save interests", "web", "api", "Queue", "scorer"].map((step, index) => (
+              <span key={step} className="flex items-center gap-2">
+                {index > 0 && <span className="text-muted">→</span>}
+                <span className={`rounded-md border px-2 py-1 ${step === "api" ? "border-accent" : "border-line"}`}>{step}</span>
+              </span>
+            ))}
+          </span>
+        </Target>
+      </div>
+      <div className="mt-4">
+        <Target n={5} name="logs">
           <span className="block rounded-md bg-surface p-3 font-mono text-[11px] leading-relaxed">
             {logs.map(([service, line], index) => (
               <span key={index} className="block truncate">

@@ -11,7 +11,7 @@ export const followUpsFlag = flag<boolean>({
 });
 
 // Off: Signal is private. Every page, and Ask Signal, need the owner's sign-in. On: anyone with the
-// link can read the feed and chat, on this deployment's AI Gateway tokens. Your feed and follow-ups
+// link can read the feed and chat, on this deployment's AI Gateway tokens. Setup and follow-ups
 // stay the owner's either way.
 export const publicAccessFlag = flag<boolean>({
   key: "public-access",

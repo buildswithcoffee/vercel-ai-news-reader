@@ -12,7 +12,7 @@ variable or commit the value. A missing or short key disables sign-in.
 - **Private by default.** Unless the `public-access` flag is on, every page (`web/proxy.ts`) and Ask
   Signal (`agent/channels/eve.ts`) need that cookie. The flag defaults to off, so a new deployment, or
   one that can't reach Vercel Flags, stays private.
-- **Owner-only either way.** Your feed and Follow-ups, and the Server Actions that change them, check
+- **Owner-only either way.** Setup and Follow-ups, and the Server Actions that change them, check
   the cookie again at the data layer (`web/lib/db.ts`), since Server Actions are public endpoints.
 - **After sign-in** you return to the page you came from, but only to a path on this site
   (`web/lib/return-path.ts`, with tests).
