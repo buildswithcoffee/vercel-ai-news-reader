@@ -1,31 +1,34 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { OWNER_COOKIE, isOwnerKey, ownerSession } from "@/lib/profile-owner";
+import { returnPath } from "@/lib/return-path";
 
 export const metadata = { title: "Sign in · Signal" };
 
 async function signIn(formData: FormData) {
   "use server";
   const session = ownerSession();
-  if (!session || !isOwnerKey(String(formData.get("key") ?? ""))) redirect("/sign-in?wrong=1");
+  const next = returnPath(formData.get("next"));
+  if (!session || !isOwnerKey(String(formData.get("key") ?? ""))) redirect(`/sign-in?wrong=1&next=${encodeURIComponent(next)}`);
   (await cookies()).set(OWNER_COOKIE, session, {
     httpOnly: true,
     secure: true,
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 30,
   });
-  redirect("/your-feed");
+  redirect(next);
 }
 
 export default async function SignInPage({ searchParams }: PageProps<"/sign-in">) {
-  const { wrong } = await searchParams;
+  const { wrong, next } = await searchParams;
   return (
     <section className="mx-auto max-w-sm">
-      <h1 className="text-2xl font-semibold tracking-tight">Sign in to tune your feed</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Sign in to Signal</h1>
       <p className="mt-2 text-muted">Signal has one owner. Enter the PROFILE_EDIT_KEY set on this deployment.</p>
       <form action={signIn} className="mt-8 space-y-3">
         {/* Lets password managers file the key under a name. */}
         <input type="text" name="username" value="owner" autoComplete="username" readOnly hidden />
+        <input type="hidden" name="next" value={returnPath(next)} />
         <input
           type="password"
           name="key"

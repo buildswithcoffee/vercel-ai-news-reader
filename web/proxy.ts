@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { publicAccessFlag } from "./flags";
 import { OWNER_COOKIE, isOwnerSession } from "./lib/profile-owner";
 
-// Your feed and follow-ups are the owner's; everyone else signs in first. The data layer checks again, since
-// Server Actions are public endpoints.
-export function proxy(request: NextRequest) {
+// Signal is private unless the public-access flag is on: everyone but the owner signs in first. Your
+// feed and follow-ups are always the owner's. The data layer checks again, since Server Actions are
+// public endpoints, and Ask Signal applies the same rule in agent/channels/eve.ts.
+export async function proxy(request: NextRequest) {
   if (isOwnerSession(request.cookies.get(OWNER_COOKIE)?.value)) return NextResponse.next();
-  return NextResponse.redirect(new URL("/sign-in", request.url));
+  const { pathname } = request.nextUrl;
+  const ownerOnly = pathname.startsWith("/your-feed") || pathname.startsWith("/follow-ups");
+  if (!ownerOnly && (await publicAccessFlag())) return NextResponse.next();
+  const signIn = new URL("/sign-in", request.url);
+  signIn.searchParams.set("next", pathname);
+  return NextResponse.redirect(signIn);
 }
 
-export const config = { matcher: ["/your-feed/:path*", "/follow-ups/:path*"] };
+// Everything but the sign-in page, static files, and the Flags Explorer route (which checks its own secret).
+export const config = { matcher: ["/((?!sign-in|_next/|logos/|favicon\\.ico|\\.well-known/vercel/flags).*)"] };

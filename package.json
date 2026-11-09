@@ -11,6 +11,7 @@
   "packageManager": "pnpm@12.9.1",
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
+    "@vercel/flags-core": "1.11.0",
     "ai": "^7.0.163",
     "eve": "1.0.0-rc.6",
     "zod": "^4.6.7"

@@ -6,10 +6,12 @@ import { Chat, type StoryRef } from "./chat";
 const GuideContext = createContext<(story: StoryRef) => void>(() => {});
 
 // The guide waits in the lower-left corner of every page. It lives in the root layout and stays
-// mounted while closed, so the conversation carries on as you move around.
-export function Guide({ children }: { children: ReactNode }) {
+// mounted while closed, so the conversation carries on as you move around. `chat` is off on a private
+// Signal until you sign in.
+export function Guide({ chat, children }: { chat: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [story, setStory] = useState<StoryRef | null>(null);
+  if (!chat) return children;
 
   function askAbout(next: StoryRef) {
     setStory(next);
