@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import { countOpenFollowUps, isOwner } from "@/lib/db";
-import { followUpsFlag } from "@/flags";
+import { followUpsFlag, publicAccessFlag } from "@/flags";
 import { Guide } from "./guide";
 import { ThemeSwitch, getTheme } from "./theme";
 import "./globals.css";
@@ -23,6 +23,8 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Ask Signal follows the same rule as the pages: the owner, or anyone when Signal is public.
+  const chat = (await isOwner()) || (await publicAccessFlag());
   return (
     <html
       lang="en"
@@ -30,7 +32,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Guide>
+        <Guide chat={chat}>
         <header className="border-b border-line">
           <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
             <Link href="/" className="font-semibold tracking-tight">

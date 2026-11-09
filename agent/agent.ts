@@ -6,7 +6,7 @@ export default defineAgent({
   // and the stories in your feed.
   defaultTools: false,
   limits: {
-    // Anyone can chat with the guide, so cap what a single conversation can spend.
+    // When Signal is public, anyone can chat with the guide, so cap what a single conversation can spend.
     sessionUsage: ({ total }) => (total.costUsd ?? 0) >= 0.5,
   },
 });
