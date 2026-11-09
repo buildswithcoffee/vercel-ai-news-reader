@@ -1,21 +1,14 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { OWNER_COOKIE, isOwnerKey, ownerSession } from "@/lib/profile-owner";
+import { returnPath } from "@/lib/return-path";
 
 export const metadata = { title: "Sign in · Signal" };
-
-// Back to the page you came from, but only on this site. Parsing it the way the browser will (which
-// drops tabs and newlines, and reads \ as /) catches addresses that only look like local paths.
-function destination(next: unknown) {
-  const here = "https://signal.invalid";
-  const url = typeof next === "string" ? URL.parse(next, here) : null;
-  return url?.origin === here ? url.pathname + url.search : "/";
-}
 
 async function signIn(formData: FormData) {
   "use server";
   const session = ownerSession();
-  const next = destination(formData.get("next"));
+  const next = returnPath(formData.get("next"));
   if (!session || !isOwnerKey(String(formData.get("key") ?? ""))) redirect(`/sign-in?wrong=1&next=${encodeURIComponent(next)}`);
   (await cookies()).set(OWNER_COOKIE, session, {
     httpOnly: true,
@@ -35,7 +28,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
       <form action={signIn} className="mt-8 space-y-3">
         {/* Lets password managers file the key under a name. */}
         <input type="text" name="username" value="owner" autoComplete="username" readOnly hidden />
-        <input type="hidden" name="next" value={destination(next)} />
+        <input type="hidden" name="next" value={returnPath(next)} />
         <input
           type="password"
           name="key"
