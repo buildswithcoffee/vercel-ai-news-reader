@@ -1,6 +1,8 @@
+import type { CSSProperties } from "react";
 import { refresh } from "next/cache";
 import { EXCERPT_CHARS, addFollowUp, type FeedItem, type Paragraph } from "@/lib/db";
 import { followUpsFlag } from "@/flags";
+import { hue } from "@/lib/hue";
 import { timeAgo } from "@/lib/time";
 import { AskAbout } from "./guide";
 
@@ -8,6 +10,14 @@ import { AskAbout } from "./guide";
 // the publisher's summary, then the opening of the article and each paragraph Signal flagged, with
 // its note in the margin. The rest of the article stays at the source, one click away.
 const FOLLOW_UPS = ["Tell my team about this", "Read the full story later", "Bring this up in our next meeting"];
+
+// Score tiers, shown by the ring's color: must read, worth a look, and the rest.
+const MUST_READ = 80;
+const WORTH_A_LOOK = 60;
+
+// How much room a story gets. The feed leads with its top story and a big photo, then two cards side
+// by side (rows on phones), then rows. Open cards span the full width, so the article has room.
+export type StorySize = "lead" | "card" | "row";
 
 async function followUp(formData: FormData) {
   "use server";
@@ -17,40 +27,53 @@ async function followUp(formData: FormData) {
 }
 
 // `followUps`: show the follow-up action. The page passes it when the flag is on and you're signed in.
-export function Story({ item, followUps = false }: { item: FeedItem; followUps?: boolean }) {
+export function Story({ item, followUps = false, size = "row" }: { item: FeedItem; followUps?: boolean; size?: StorySize }) {
   const hasMore = Boolean(item.detail) || item.takeaways.length > 0;
+  const clamp = { lead: "", card: "line-clamp-3", row: "line-clamp-2" }[size];
   return (
-    <li>
-      <details name="story" className="drawer group rounded-xl border border-line">
+    <li className={size === "card" ? "sm:has-[details[open]]:col-span-2" : "sm:col-span-2"}>
+      <details name="story" className="drawer group h-full rounded-xl border border-line">
         <summary
-          className={`flex cursor-pointer list-none gap-4 p-5 hover:bg-surface/50 [&::-webkit-details-marker]:hidden ${
+          className={`block cursor-pointer list-none p-5 hover:bg-surface/50 [&::-webkit-details-marker]:hidden ${
             hasMore ? "group-open:pb-0" : ""
           }`}
         >
-          <Badge item={item} />
-          <div className="min-w-0 flex-1">
-            <h2 className="font-medium">{item.title}</h2>
-            <p className="mt-1 text-xs text-muted">
-              {[
-                item.source,
-                timeAgo(item.published_at),
-                item.coverage ? `via ${item.coverage.source}` : item.headlineOnly ? "Headline only" : null,
-                ...item.topics,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
-            {item.why && (
-              <p
-                data-xray="why"
-                className={`-ml-15 mt-3 rounded-md bg-surface px-3 py-2 text-sm sm:ml-0 ${hasMore ? "group-open:rounded-b-none" : ""}`}
-              >
-                <span className="font-medium text-accent">Why it matters to you: </span>
-                {item.why}
-              </p>
+          {item.image && size !== "row" && (
+            <Photo
+              src={item.image}
+              className={`mb-4 w-full rounded-lg group-open:hidden ${size === "lead" ? "h-48 sm:h-72" : "hidden h-40 sm:block"}`}
+            />
+          )}
+          <div className="flex gap-4">
+            <Badge item={item} />
+            <div className="min-w-0 flex-1">
+              {size === "lead" && (item.score ?? 0) >= MUST_READ && <p className="text-xs font-medium text-accent">Must read</p>}
+              <h2 className={`font-serif leading-snug font-medium ${size === "lead" ? "text-2xl sm:text-3xl" : "text-lg"}`}>
+                {item.title}
+              </h2>
+              <Meta item={item} />
+              {item.why && (
+                <p
+                  data-xray="why"
+                  className={`-ml-15 mt-3 rounded-md bg-accent/8 px-3 py-2 text-sm sm:ml-0 ${hasMore ? "group-open:rounded-b-none" : ""}`}
+                >
+                  {/* Clamped inside the padding, so a cut-off line never peeks into it. */}
+                  <span className={`group-open:line-clamp-none ${clamp}`}>
+                    <span className="font-medium text-accent">Why it matters to you: </span>
+                    {item.why}
+                  </span>
+                </p>
+              )}
+            </div>
+            {item.image && (
+              <Photo
+                src={item.image}
+                className={`h-14 w-14 shrink-0 rounded-md group-open:hidden sm:h-20 sm:w-32 ${
+                  size === "lead" ? "hidden" : size === "card" ? "sm:hidden" : ""
+                }`}
+              />
             )}
           </div>
-          {item.image && <Photo src={item.image} className="h-14 w-14 shrink-0 rounded-md group-open:hidden sm:h-20 sm:w-32" />}
         </summary>
 
         <div className="grid gap-x-8 gap-y-5 px-5 pb-6 sm:pl-20 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -58,7 +81,7 @@ export function Story({ item, followUps = false }: { item: FeedItem; followUps?:
               the box on the card reaches under the score badge (-ml-15: the badge's width plus the gap), so
               both halves share the same edges. */}
           {hasMore && (
-            <div className="space-y-3 rounded-b-md bg-surface px-3 pt-1 pb-3 text-sm lg:col-span-2">
+            <div className="space-y-3 rounded-b-md bg-accent/8 px-3 pt-1 pb-3 text-sm lg:col-span-2">
               {item.detail && <p>{item.detail}</p>}
               {item.takeaways.length > 0 && (
                 <ul className="list-disc space-y-1 pl-4">
@@ -183,18 +206,66 @@ function Photo({ src, className }: { src: string; className: string }) {
   );
 }
 
-// A score, or why there isn't one: the quick check said it's not a match, or it hasn't been checked yet.
+// Where it's from and when, and the interests it matched, each in its own color.
+function Meta({ item }: { item: FeedItem }) {
+  const via = item.coverage ? `via ${item.coverage.source}` : item.headlineOnly ? "Headline only" : null;
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+      <span className="flex items-center gap-1.5">
+        <span
+          aria-hidden
+          className="tint flex h-4 w-4 items-center justify-center rounded text-[10px] font-semibold"
+          style={{ "--hue": hue(item.source) } as CSSProperties}
+        >
+          {item.source[0]}
+        </span>
+        {[item.source, timeAgo(item.published_at), via].filter(Boolean).join(" · ")}
+      </span>
+      {item.topics.map((topic) => (
+        <span key={topic} className="tint rounded-full px-2 py-0.5" style={{ "--hue": hue(topic) } as CSSProperties}>
+          {topic}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// A score as a ring that fills to it, colored by tier; or why there isn't one: the quick check said
+// it's not a match, or it hasn't been checked yet.
 function Badge({ item }: { item: FeedItem }) {
-  const label = { scored: String(item.score), "no-match": "No match", pending: "…" }[item.status];
+  if (item.status !== "scored" || item.score === null) {
+    return (
+      <span
+        data-xray="score"
+        title={item.status === "pending" ? "Not scored yet" : undefined}
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-3 border-line text-center text-[10px] leading-tight text-muted"
+      >
+        {item.status === "pending" ? "…" : "No match"}
+      </span>
+    );
+  }
+  const score = item.score;
+  const tier = score >= MUST_READ ? "text-accent" : score >= WORTH_A_LOOK ? "text-accent/45" : "text-muted/60";
   return (
     <span
       data-xray="score"
-      title={item.status === "pending" ? "Not scored yet" : undefined}
-      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface text-center ${
-        item.status === "scored" ? "font-semibold" : "text-[10px] leading-tight text-muted"
-      }`}
+      className={`relative flex h-11 w-11 shrink-0 items-center justify-center text-sm font-semibold ${score < WORTH_A_LOOK ? "text-muted" : ""}`}
     >
-      {label}
+      <svg viewBox="0 0 44 44" aria-hidden className={`absolute inset-0 -rotate-90 ${tier}`}>
+        <circle cx="22" cy="22" r="20" fill="none" strokeWidth="3" className="stroke-line" />
+        <circle
+          cx="22"
+          cy="22"
+          r="20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          pathLength={100}
+          strokeDasharray={`${score} 100`}
+        />
+      </svg>
+      {score}
     </span>
   );
 }

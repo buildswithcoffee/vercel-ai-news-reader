@@ -4,7 +4,7 @@ import Link from "next/link";
 import { getFeed, getFeedTopics, getProfile, isOwner, type Sort } from "@/lib/db";
 import { followUpsFlag } from "@/flags";
 import { AutoRefresh } from "./auto-refresh";
-import { Story } from "./story";
+import { Story, type StorySize } from "./story";
 
 const SORTS: { value: Sort; label: string }[] = [
   { value: "relevance", label: "Most relevant" },
@@ -33,6 +33,8 @@ export default async function FeedPage({ searchParams }: PageProps<"/">) {
   ];
   const filter = filters.find(({ value }) => value === params.filter)?.value ?? null;
   const [feed, followUps] = await Promise.all([getFeed(sort, filter), canFollowUp()]);
+  // Ranked by relevance, the feed is laid out like a front page. Latest, and No match, are plain lists.
+  const front = sort === "relevance" && filter !== "no-match";
 
   return (
     <section>
@@ -68,14 +70,19 @@ export default async function FeedPage({ searchParams }: PageProps<"/">) {
           {filter ? "No stories here yet." : "Scanning the news…"}
         </p>
       ) : (
-        <ol className="mt-8 space-y-4">
-          {feed.map((item) => (
-            <Story key={item.id} item={item} followUps={followUps} />
+        <ol className="mt-8 grid gap-4 sm:grid-cols-2">
+          {feed.map((item, index) => (
+            <Story key={item.id} item={item} followUps={followUps} size={front ? frontPage(index) : "row"} />
           ))}
         </ol>
       )}
     </section>
   );
+}
+
+// The top story leads, the next two are cards, and the rest are rows.
+function frontPage(index: number): StorySize {
+  return index === 0 ? "lead" : index < 3 ? "card" : "row";
 }
 
 // Follow-ups are behind a flag, and only the owner has them.
