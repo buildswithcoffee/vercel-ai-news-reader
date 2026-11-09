@@ -51,7 +51,7 @@ function Row({ followUp: { id, task, done, title, url, source } }: { followUp: F
         <button
           aria-label={done ? "Mark as not done" : "Mark as done"}
           aria-pressed={done}
-          className="mt-0.5 flex h-5 w-5 items-center justify-center rounded border border-line text-xs text-white hover:border-accent aria-pressed:border-accent aria-pressed:bg-accent"
+          className="mt-0.5 flex h-5 w-5 items-center justify-center rounded border border-line text-xs text-background hover:border-accent aria-pressed:border-accent aria-pressed:bg-accent"
         >
           {done && "✓"}
         </button>

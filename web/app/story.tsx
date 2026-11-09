@@ -118,7 +118,7 @@ export function Story({ item, followUps = false, size = "row" }: { item: FeedIte
           <div className="flex flex-wrap items-center gap-3 pt-2 lg:col-span-2">
             <AskAbout
               story={{ id: item.id, title: item.title }}
-              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-background hover:opacity-90"
             />
             <a
               href={item.url}

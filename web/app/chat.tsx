@@ -117,7 +117,7 @@ export function Chat({ story, onClearStory, focus }: { story: StoryRef | null; o
             disabled={agent.status === "resuming"}
             className="min-w-0 flex-1 rounded-lg border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-accent"
           />
-          <button className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90">
+          <button className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-background hover:opacity-90">
             {agent.status === "busy" ? "…" : "Ask"}
           </button>
         </div>

@@ -119,7 +119,7 @@ function GuideSlide() {
       </Target>
       <Target n={4} name="conversation" region>
         <div className="mt-4 space-y-3 pb-1">
-          <p className="play-in ml-auto w-fit max-w-[85%] rounded-lg bg-accent px-3 py-2 text-white" style={at(0.2)}>
+          <p className="play-in ml-auto w-fit max-w-[85%] rounded-lg bg-accent px-3 py-2 text-background" style={at(0.2)}>
             How does Signal keep scoring when no one&apos;s looking?
           </p>
           <div className="play-in" style={at(0.9)}>
@@ -315,7 +315,7 @@ function Number({ n, className = "" }: { n: number; className?: string }) {
   return (
     <span
       aria-hidden
-      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-white ${className}`}
+      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-background ${className}`}
     >
       {n}
     </span>

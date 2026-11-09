@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getFeed, getFeedTopics, getProfile, isOwner, type Sort } from "@/lib/db";
 import { followUpsFlag } from "@/flags";
 import { AutoRefresh } from "./auto-refresh";
+import { GridLines } from "./grid-lines";
 import { Story, type StorySize } from "./story";
 
 const SORTS: { value: Sort; label: string }[] = [
@@ -56,7 +57,7 @@ export default async function FeedPage({ searchParams }: PageProps<"/">) {
             key={label}
             href={feedUrl(sort, value)}
             aria-current={filter === value ? "page" : undefined}
-            className="shrink-0 rounded-full border border-line px-3 py-1 whitespace-nowrap text-muted hover:text-foreground aria-[current=page]:border-accent aria-[current=page]:bg-accent aria-[current=page]:text-white"
+            className="shrink-0 rounded-full border border-line px-3 py-1 whitespace-nowrap text-muted hover:text-foreground aria-[current=page]:border-accent aria-[current=page]:bg-accent aria-[current=page]:text-background"
           >
             {label}
           </Link>
@@ -70,11 +71,14 @@ export default async function FeedPage({ searchParams }: PageProps<"/">) {
           {filter ? "No stories here yet." : "Scanning the news…"}
         </p>
       ) : (
-        <ol className="mt-8 grid gap-4 sm:grid-cols-2">
-          {feed.map((item, index) => (
-            <Story key={item.id} item={item} followUps={followUps} size={front ? frontPage(index) : "row"} />
-          ))}
-        </ol>
+        <div className="relative mt-8">
+          <ol className="grid gap-4 sm:grid-cols-2">
+            {feed.map((item, index) => (
+              <Story key={item.id} item={item} followUps={followUps} size={front ? frontPage(index) : "row"} />
+            ))}
+          </ol>
+          {front && <GridLines />}
+        </div>
       )}
     </section>
   );
