@@ -4,9 +4,12 @@ import { OWNER_COOKIE, isOwnerKey, ownerSession } from "@/lib/profile-owner";
 
 export const metadata = { title: "Sign in · Signal" };
 
-// Back to the page you came from: a path on this site, never another site's address.
+// Back to the page you came from, but only on this site. Parsing it the way the browser will (which
+// drops tabs and newlines, and reads \ as /) catches addresses that only look like local paths.
 function destination(next: unknown) {
-  return typeof next === "string" && /^\/(?![/\\])/.test(next) ? next : "/";
+  const here = "https://signal.invalid";
+  const url = typeof next === "string" ? URL.parse(next, here) : null;
+  return url?.origin === here ? url.pathname + url.search : "/";
 }
 
 async function signIn(formData: FormData) {
