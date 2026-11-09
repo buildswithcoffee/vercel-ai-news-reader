@@ -11,8 +11,7 @@
 </p>
 
 <p align="center">
-  <!-- TODO: replace YOUR-ORG/signal with the public repo once it exists -->
-  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FYOUR-ORG%2Fsignal&project-name=signal&repository-name=signal&env=PROFILE_EDIT_KEY&envDescription=Your%20owner%20key%3A%20any%20password%20of%2032%2B%20characters.%20You%27ll%20use%20it%20to%20sign%20in%20to%20your%20Signal.&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%2C%22protocol%22%3A%22storage%22%7D%5D"><img src="https://vercel.com/button" alt="Deploy with Vercel" /></a>
+  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fbuildswithcoffee%2Fvercel-ai-news-reader&project-name=signal&repository-name=signal&env=PROFILE_EDIT_KEY&envDescription=Your%20owner%20key%3A%20any%20password%20of%2032%2B%20characters.%20You%27ll%20use%20it%20to%20sign%20in%20to%20your%20Signal.&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%2C%22protocol%22%3A%22storage%22%7D%5D"><img src="https://vercel.com/button" alt="Deploy with Vercel" /></a>
 </p>
 
 <p align="center">
