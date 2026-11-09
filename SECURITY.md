@@ -1,22 +1,29 @@
-# Single-reader profile editing
+# Security
 
-The feed remains public, but `/interests` and the profile-saving data access function
-require HTTP Basic credentials. Use username `owner` and a randomly generated,
-high-entropy password of at least 32 characters. Set that password as the server-only
-`PROFILE_EDIT_KEY` environment variable for the web service. Never use a
-`NEXT_PUBLIC_` variable or commit the value. Missing or short keys disable editing.
-Use HTTPS (except for local development); browsers may cache Basic credentials
-until the browser session is closed. Rotating the key invalidates old credentials.
+## How sign-in works
 
-For Vercel, enter the value yourself at the CLI prompt, before deploying this change:
+Each Signal has one owner, who signs in with `PROFILE_EDIT_KEY`: a randomly generated password of at
+least 32 characters, set as a server-only, sensitive environment variable. Never use a `NEXT_PUBLIC_`
+variable or commit the value. A missing or short key disables sign-in.
+
+- **Sign-in** sets an HttpOnly, Secure, SameSite=Lax cookie holding an HMAC of a fixed label, keyed by
+  the key, for 30 days. It proves you know the key without containing it, and changing the key signs
+  every browser out.
+- **Private by default.** Unless the `public-access` flag is on, every page (`web/proxy.ts`) and Ask
+  Signal (`agent/channels/eve.ts`) need that cookie. The flag defaults to off, so a new deployment, or
+  one that can't reach Vercel Flags, stays private.
+- **Owner-only either way.** Your feed and Follow-ups, and the Server Actions that change them, check
+  the cookie again at the data layer (`web/lib/db.ts`), since Server Actions are public endpoints.
+- **After sign-in** you return to the page you came from, but only to a path on this site
+  (`web/lib/return-path.ts`, with tests).
+- **Ask Signal** caps what each conversation can spend (`agent/agent.ts`), since a shared Signal lets
+  anyone chat on the owner's AI Gateway credits.
+
+To set the key on an existing project, enter it yourself at the prompt:
 
 ```sh
-vercel env add PROFILE_EDIT_KEY --environment production --sensitive --project vercel-ai-news-reader
+vercel env add PROFILE_EDIT_KEY --environment production --sensitive
 ```
-
-Use a separate key for preview/development environments if editing is needed there.
-Deploy after configuring the variable. The normal web build applies the additive,
-idempotent database migration before the daemon uses the new columns/table.
 
 ## Profile-derived feed topics
 
@@ -44,7 +51,7 @@ Deployments still running the old code remain exposed until replaced or removed.
 - Each admitted rescore considers only the 100 newest articles from the last three
   days. Local relevance filtering happens before paid calls. A process-wide semaphore
   allows at most four simultaneous AI calls across scans and rescores. Each call has
-  a 30-second timeout, a 256-token output limit, and no SDK retries.
+  a 30-second timeout, a 1,536-token output limit, and no SDK retries.
 - Claims are persisted **before** paid work. A failed/interrupted rescore can leave
   partial results; replay does not retry that version and incur additional charges.
   A later admitted profile change can request another bounded batch. Older articles
