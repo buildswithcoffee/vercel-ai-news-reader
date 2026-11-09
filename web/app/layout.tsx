@@ -53,7 +53,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             </div>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">{children}</main>
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-10 pb-24">{children}</main>
         </Guide>
       </body>
     </html>
