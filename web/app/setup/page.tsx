@@ -1,10 +1,11 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { getProfile, getSources, saveProfile, setEnabledSources, type Source } from "@/lib/db";
+import { getProfile, getSources, saveProfile, setEnabledSources } from "@/lib/db";
 import { OWNER_COOKIE } from "@/lib/profile-owner";
 import { requestRescore } from "@/lib/backend";
 import { parts, type PartName } from "@/lib/xray";
+import { Sources } from "./sources";
 
 export const metadata = { title: "Setup · Signal" };
 
@@ -58,7 +59,6 @@ async function signOut() {
 export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
   await connection(); // read your saved choices at request time, not at build
   const [profile, sources, { wait }] = await Promise.all([getProfile(), getSources(), searchParams]);
-  const kinds = Map.groupBy(sources, (source) => source.kind);
 
   return (
     <section className="max-w-3xl">
@@ -86,14 +86,7 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
         <h2 className="mt-8 font-medium">Topics</h2>
         <Chips name="topic" options={TOPICS.map((topic) => [topic, profile?.topics.includes(topic) ?? false])} />
 
-        <h2 className="mt-8 font-medium">Sources</h2>
-        <p className="mt-1 text-sm text-muted">New sources show up with the next scan, within 15 minutes.</p>
-        {[...kinds].map(([kind, group]) => (
-          <div key={kind} className="mt-4">
-            <p className="text-xs uppercase tracking-wide text-muted">{kind}</p>
-            <Chips name="source" options={group.map((source: Source) => [source.name, source.enabled])} />
-          </div>
-        ))}
+        <Sources sources={sources} />
 
         <button type="submit" className="mt-10 rounded-md bg-accent px-5 py-2.5 font-medium text-white hover:opacity-90">
           Update my feed
