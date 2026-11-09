@@ -68,14 +68,14 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   );
 }
 
-// Signal's mark: a source and the waves coming off it. The same drawing as docs/logo.svg.
+// Signal's mark: an S cut from two strokes, notched where they meet. One color, so it flips with the
+// theme: a dark tile in light mode, a light one in dark. The same drawing as app/icon.svg.
 function Mark() {
   return (
     <svg viewBox="0 0 56 56" aria-hidden className="h-6 w-6">
-      <rect width="56" height="56" rx="14" className="fill-accent" />
-      <circle cx="18" cy="38" r="4" fill="#fff" />
-      <path d="M18 26a12 12 0 0 1 12 12" stroke="#fff" strokeWidth="4" strokeLinecap="round" fill="none" />
-      <path d="M18 16a22 22 0 0 1 22 22" stroke="#fff" strokeWidth="4" strokeLinecap="round" fill="none" opacity=".6" />
+      <rect width="56" height="56" rx="13" className="fill-foreground" />
+      <path d="M41 14H21a5 5 0 0 0-5 5v12h14.5v-6.5H23V21h18z" className="fill-background" />
+      <path d="M33 24.5h7v13a5 5 0 0 1-5 5H15V35.5h18z" className="fill-background" />
     </svg>
   );
 }

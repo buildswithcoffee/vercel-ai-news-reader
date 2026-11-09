@@ -16,4 +16,4 @@ export async function proxy(request: NextRequest) {
 }
 
 // Everything but the sign-in page, static files, and the Flags Explorer route (which checks its own secret).
-export const config = { matcher: ["/((?!sign-in|_next/|logos/|favicon\\.ico|\\.well-known/vercel/flags).*)"] };
+export const config = { matcher: ["/((?!sign-in|_next/|logos/|icon\\.svg|favicon\\.ico|\\.well-known/vercel/flags).*)"] };
