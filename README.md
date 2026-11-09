@@ -91,7 +91,7 @@ flowchart LR
 ## After you deploy
 
 1. **Sign in** with the `PROFILE_EDIT_KEY` you chose.
-2. **Open Your feed** and say what you care about, in a sentence or two, and pick your sources.
+2. **Open Setup** and say what you care about, in a sentence or two, and pick your sources.
 3. **Give it a few minutes.** The scorer picks up new stories every 15 minutes, and scores the recent ones as soon as you save.
 
 ### Private, or shared
@@ -102,7 +102,7 @@ Your Signal is **private by default**: every page and Ask Signal ask for your ke
 vercel flags create public-access --kind boolean --default-variant false --environment-variant production=true
 ```
 
-Turn it off again in the Vercel dashboard, under **Flags**, with no redeploy. Your feed settings stay yours either way.
+Turn it off again in the Vercel dashboard, under **Flags**, with no redeploy. Setup stays yours either way.
 
 > [!TIP]
 > Deploying to a team? Everyone shares one feed, tuned to whoever set it up. For a feed of your own, deploy to your own account.

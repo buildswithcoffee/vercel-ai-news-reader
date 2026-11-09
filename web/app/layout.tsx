@@ -40,9 +40,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             </Link>
             <nav className="flex gap-4 text-sm text-muted">
               <Link href="/" className="hover:text-foreground">Feed</Link>
-              <Link href="/your-feed" className="hover:text-foreground">Your feed</Link>
+              <Link href="/setup" className="hover:text-foreground">Setup</Link>
               <FollowUpsLink />
-              <Link href="/how-it-works" className="hover:text-foreground">How it works</Link>
             </nav>
             <div className="ml-auto flex items-center gap-2">
               <Link

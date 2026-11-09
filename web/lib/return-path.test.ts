@@ -4,7 +4,7 @@ import { returnPath } from "./return-path.ts";
 
 test("keeps paths on this site", () => {
   assert.equal(returnPath("/xray"), "/xray");
-  assert.equal(returnPath("/your-feed?sort=new"), "/your-feed?sort=new");
+  assert.equal(returnPath("/setup?wait=1"), "/setup?wait=1");
 });
 
 test("refuses anything that leads to another site", () => {
