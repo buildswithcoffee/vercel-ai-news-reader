@@ -28,12 +28,20 @@
   --color-accent: var(--accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-newsreader);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* A soft wash of a topic's or source's color (lib/hue.ts sets --hue), with text dark enough to read
+   on light and light enough on dark. */
+.tint {
+  background: color-mix(in oklab, var(--hue) 14%, transparent);
+  color: color-mix(in oklab, var(--hue) 55%, var(--foreground));
 }
 
 /* X-ray's mock chat plays each time its slide comes into view (see app/xray/slides.tsx). */
