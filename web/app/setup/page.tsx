@@ -88,7 +88,7 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
 
         <Sources sources={sources} />
 
-        <button type="submit" className="mt-10 rounded-md bg-accent px-5 py-2.5 font-medium text-white hover:opacity-90">
+        <button type="submit" className="mt-10 rounded-md bg-accent px-5 py-2.5 font-medium text-background hover:opacity-90">
           Update my feed
         </button>
       </form>
@@ -128,7 +128,7 @@ function Chips({ name, options }: { name: string; options: [string, boolean][] }
       {options.map(([value, checked]) => (
         <label key={value}>
           <input type="checkbox" name={name} value={value} defaultChecked={checked} className="peer sr-only" />
-          <span className="block cursor-pointer rounded-full border border-line px-3.5 py-1.5 text-sm peer-checked:border-accent peer-checked:bg-accent peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-accent">
+          <span className="block cursor-pointer rounded-full border border-line px-3.5 py-1.5 text-sm peer-checked:border-accent peer-checked:bg-accent peer-checked:text-background peer-focus-visible:ring-2 peer-focus-visible:ring-accent">
             {value}
           </span>
         </label>

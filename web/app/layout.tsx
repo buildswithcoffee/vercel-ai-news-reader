@@ -53,7 +53,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             <div className="ml-auto flex items-center gap-2">
               <Link
                 href="/xray"
-                className="rounded-full border border-accent px-3 py-1 text-xs text-accent hover:bg-accent hover:text-white"
+                className="rounded-full border border-accent px-3 py-1 text-xs text-accent hover:bg-accent hover:text-background"
               >
                 X-ray
               </Link>
@@ -86,7 +86,7 @@ async function FollowUpsLink() {
   const open = await countOpenFollowUps();
   return (
     <Link href="/follow-ups" className="hover:text-foreground">
-      Follow-ups{open > 0 && <span className="ml-1 rounded-full bg-accent px-1.5 text-xs text-white">{open}</span>}
+      Follow-ups{open > 0 && <span className="ml-1 rounded-full bg-accent px-1.5 text-xs text-background">{open}</span>}
     </Link>
   );
 }

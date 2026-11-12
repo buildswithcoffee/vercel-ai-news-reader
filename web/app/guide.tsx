@@ -38,7 +38,7 @@ export function Guide({ chat, children }: { chat: boolean; children: ReactNode }
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed right-4 bottom-4 z-50 rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-lg hover:opacity-90"
+          className="fixed right-4 bottom-4 z-50 rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-background shadow-lg hover:opacity-90"
         >
           Ask Signal
         </button>
