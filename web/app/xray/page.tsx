@@ -18,12 +18,15 @@ export default async function XrayPage() {
   await connection(); // your feed as it is right now
   const stories = (await getFeed("relevance", null)).slice(0, 3);
   return (
-    // Wider than the other pages, to leave room for the margin notes.
+    // Wider than the other pages, to leave room for the margin notes. The heading, tabs and the boxed
+    // slides line up with the other pages (page-column in globals.css).
     <div className="relative left-1/2 w-[min(76rem,calc(100vw-2rem))] -translate-x-1/2">
-      <h1 className="text-2xl font-semibold tracking-tight">X-ray</h1>
-      <p className="mt-2 text-muted">
-        How Vercel runs Signal, from the feed to the agent to the platform underneath, and how to make one of your own.
-      </p>
+      <div className="page-column">
+        <h1 className="text-2xl font-semibold tracking-tight">X-ray</h1>
+        <p className="mt-2 text-muted">
+          How Vercel runs Signal, from the feed to the agent to the platform underneath, and how to make one of your own.
+        </p>
+      </div>
       <Slides titles={["The feed", "The agent", "Vercel Platform", "Make it your own", "Share"]}>
         <FeedSlide stories={stories} />
         <AgentSlide />
@@ -295,7 +298,7 @@ const IDEAS = [
 
 function OwnSlide() {
   return (
-    <div className="rounded-xl border border-line p-6 sm:p-10">
+    <div className="page-column rounded-xl border border-line p-6 sm:p-10">
       <h2 className="font-serif text-3xl font-medium tracking-tight">Build on Signal</h2>
       <p className="mt-2 max-w-2xl text-muted">
         Signal is a starting point. Add what you wish it did: your coding agent writes the change, and Vercel ships it
@@ -363,7 +366,7 @@ function ShareSlide() {
     "Open your new Signal, sign in, and pick your interests and sources in Setup. Stories arrive within 15 minutes.",
   ];
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-10 rounded-xl border border-line p-6 sm:p-10 lg:grid-cols-[auto_minmax(0,1fr)]">
+    <div className="page-column grid grid-cols-[minmax(0,1fr)] items-center gap-10 rounded-xl border border-line p-6 sm:p-10 lg:grid-cols-[auto_minmax(0,1fr)]">
       <div className="mx-auto max-w-52 text-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/share-qr.svg" alt={`QR code for ${REPO}`} width={208} height={208} className="rounded-lg bg-white" />

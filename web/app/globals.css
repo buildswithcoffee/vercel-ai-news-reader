@@ -39,6 +39,13 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+/* The width every page's content lines up to: main's max-w-5xl (64rem) less its 1rem padding on each
+   side. X-ray runs wider for its margin notes, and lines its heading, tabs and boxed slides up to this. */
+@utility page-column {
+  margin-inline: auto;
+  max-width: 62rem;
+}
+
 /* A soft wash of a topic's or source's color (lib/hue.ts sets --hue), with text dark enough to read
    on light and light enough on dark. */
 .tint {

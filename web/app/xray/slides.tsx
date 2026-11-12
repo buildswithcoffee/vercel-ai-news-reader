@@ -24,18 +24,20 @@ export function Slides({ titles, children }: { titles: string[]; children: React
 
   return (
     <>
-      <div role="tablist" className="mt-6 flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-surface p-1 text-sm [scrollbar-width:none]">
-        {titles.map((title, index) => (
-          <button
-            key={title}
-            role="tab"
-            aria-selected={index === active}
-            onClick={() => show(index)}
-            className="shrink-0 rounded-md px-3 py-1.5 whitespace-nowrap text-muted hover:text-foreground aria-selected:bg-background aria-selected:text-foreground aria-selected:shadow-sm"
-          >
-            {index + 1}. {title}
-          </button>
-        ))}
+      <div className="page-column">
+        <div role="tablist" className="mt-6 flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-surface p-1 text-sm [scrollbar-width:none]">
+          {titles.map((title, index) => (
+            <button
+              key={title}
+              role="tab"
+              aria-selected={index === active}
+              onClick={() => show(index)}
+              className="shrink-0 rounded-md px-3 py-1.5 whitespace-nowrap text-muted hover:text-foreground aria-selected:bg-background aria-selected:text-foreground aria-selected:shadow-sm"
+            >
+              {index + 1}. {title}
+            </button>
+          ))}
+        </div>
       </div>
       <div ref={track} className="mt-6 flex snap-x snap-mandatory items-start overflow-x-auto [scrollbar-width:none]">
         {Children.map(children, (slide, index) => (
