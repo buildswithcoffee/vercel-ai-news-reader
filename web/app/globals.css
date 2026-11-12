@@ -53,49 +53,6 @@ body {
   color: color-mix(in oklab, var(--hue) 55%, var(--foreground));
 }
 
-/* The front page's grid lines (app/grid-lines.tsx): each draws in, then fades to a whisper. */
-.grid-line,
-.grid-plus {
-  fill: none;
-  stroke: var(--foreground);
-  stroke-width: 1;
-}
-.grid-line {
-  opacity: 0.08;
-}
-.grid-plus {
-  opacity: 0.25;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .grid-line {
-    stroke-dasharray: 1;
-    animation:
-      grid-draw 0.9s ease-out both,
-      grid-fade 1.2s ease both;
-  }
-  .grid-plus {
-    animation: grid-plus 1.8s 0.6s ease both;
-  }
-}
-@keyframes grid-draw {
-  from {
-    stroke-dashoffset: 1;
-  }
-}
-@keyframes grid-fade {
-  from {
-    opacity: 0.35;
-  }
-}
-@keyframes grid-plus {
-  from {
-    opacity: 0;
-  }
-  30% {
-    opacity: 0.6;
-  }
-}
-
 /* X-ray's mock chat plays each time its slide comes into view (see app/xray/slides.tsx). */
 @media (prefers-reduced-motion: no-preference) {
   .play-in,
