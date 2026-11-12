@@ -5,6 +5,7 @@ import { DEPLOY, REPO, parts, type PartName } from "@/lib/xray";
 import { Story } from "../story";
 import { Logo } from "../xray";
 import { Connectors } from "./connectors";
+import { Prompt } from "./prompt";
 import { Slides } from "./slides";
 
 export const metadata = { title: "X-ray · Signal" };
@@ -252,82 +253,104 @@ function PlatformSlide() {
   );
 }
 
-// Where to change Signal, and how to keep it yours or share it.
+// An invitation to build on Signal: how a change ships, from your coding agent to a pull request to
+// production, and three features to try, each with a prompt to hand your agent.
+const BUILD_STEPS = [
+  {
+    title: "Get the code",
+    text: "Deploy your own copy from Share, then have your coding agent bring it down to your computer.",
+    prompt: "Clone my Signal repo from GitHub to my desktop, install its dependencies, and run `vercel link` to connect it to my Vercel project.",
+  },
+  {
+    title: "Ask for a feature",
+    text: "Describe what you want in plain words. Ask for a branch and a pull request, so nothing reaches production until you've tried it.",
+    prompt: "Add [your feature]. Work on a new branch, commit as you go, and open a pull request when it's ready.",
+  },
+  {
+    title: "See it, then ship it",
+    text: "Vercel builds every pull request into its own preview, with all four services and its own copy of the database. Try it there, then merge, and production updates.",
+  },
+];
+
+const IDEAS = [
+  {
+    title: "A morning email",
+    text: "Your five strongest stories in your inbox at 8am.",
+    uses: ["Resend", "Cron Jobs", "Vercel Flags"],
+    prompt: "Add a morning email: every day at 8am, send me my five highest-scoring stories from the last day, each with its why-it-matters line. Use Resend from the Vercel Marketplace for the email and a Vercel cron job for the schedule, and put it behind a Vercel flag. Work on a new branch, commit, and open a pull request.",
+  },
+  {
+    title: "Ask Signal in Slack",
+    text: "Mention Signal in a channel and ask about today's news.",
+    uses: ["eve", "Vercel Connect"],
+    prompt: "Add a Slack channel to the Ask Signal agent in agent/ with `eve add channel/slack`, so my team can mention it in Slack and ask about stories in the feed. Keep the web chat as it is. Work on a new branch, commit, and open a pull request.",
+  },
+  {
+    title: "What's heating up",
+    text: "A weekly chart of which of your topics are rising.",
+    uses: ["Next.js", "Neon Postgres"],
+    prompt: "Add a Trends page that charts, week by week for the last eight weeks, how many strong stories (scored 80 or more) each of my topics had, using the scores already in Postgres. Link it from the nav. Work on a new branch, commit, and open a pull request.",
+  },
+];
+
 function OwnSlide() {
-  const files: [string, string | null, number | null][] = [
-    ["agent/", null, null],
-    ["  instructions.ts", "instructions", 1],
-    ["  tools/", null, null],
-    ["scorer/", null, null],
-    ["  worker.py", "scorer", 2],
-    ["web/", null, null],
-    ["  db/schema.sql", "sources", 3],
-    ["  flags.ts", "flags", 4],
-  ];
   return (
-    <Tour
-      left={
-        <>
-          <Note n={1} part="agent" to="instructions">
-            Teach the agent new things: its instructions are agent/instructions.ts, and each tool is one file in
-            agent/tools/. Push, and it redeploys with everything else.
-          </Note>
-          <Note n={2} part="gateway" to="scorer">
-            Change how stories are judged: the scoring prompt and the model are at the top of scorer/worker.py. Any
-            model on AI Gateway is one string away.
-          </Note>
-          <Note n={3} part="neon" to="sources">
-            Add a source with one line in web/db/schema.sql. The next deploy adds it to Setup, ready to switch on.
-          </Note>
-        </>
-      }
-      right={
-        <>
-          <Note n={4} part="flags" to="flags">
-            Signal is private by default. Turn on the public-access flag to share it with anyone who has the link,
-            and off again whenever you like.
-          </Note>
-          <Note n={5} part="env" to="key">
-            Your PROFILE_EDIT_KEY is your password. Set it as a sensitive environment variable, and only you can sign
-            in, change Setup, or chat.
-          </Note>
-          <Note n={6} part="protection" to="protection">
-            Deploying to a team? Vercel Authentication can also stand in front of the whole app, so only your team
-            gets in.
-          </Note>
-        </>
-      }
-    >
-      <span className="font-semibold tracking-tight">signal</span>
-      <div className="mt-3 space-y-1 font-mono text-xs">
-        {files.map(([path, target, n]) =>
-          target && n ? (
-            <Target key={path} n={n} name={target}>
-              <span className="whitespace-pre">{path}</span>
-            </Target>
-          ) : (
-            <p key={path} className="whitespace-pre text-muted">
-              {path}
+    <div className="rounded-xl border border-line p-6 sm:p-10">
+      <h2 className="font-serif text-3xl font-medium tracking-tight">Build on Signal</h2>
+      <p className="mt-2 max-w-2xl text-muted">
+        Signal is a starting point. Add what you wish it did: your coding agent writes the change, and Vercel ships it
+        the same way every part of Signal shipped.
+      </p>
+
+      <ol className="mt-8 grid gap-4 lg:grid-cols-3">
+        {BUILD_STEPS.map((step, index) => (
+          <li key={step.title} className="rounded-lg border border-line p-4 text-sm">
+            <p className="flex items-center gap-2 font-medium">
+              <Number n={index + 1} />
+              {step.title}
             </p>
-          ),
-        )}
+            <p className="mt-2 text-muted">{step.text}</p>
+            {step.prompt && <Prompt text={step.prompt} />}
+          </li>
+        ))}
+      </ol>
+
+      <h3 className="mt-10 font-medium">Three ideas to try</h3>
+      <div className="mt-3 grid gap-4 lg:grid-cols-3">
+        {IDEAS.map((idea) => (
+          <div key={idea.title} className="flex flex-col rounded-lg border border-dashed border-line p-4 text-sm">
+            <p className="font-serif text-lg font-medium">{idea.title}</p>
+            <p className="mt-1 text-muted">{idea.text}</p>
+            <p className="mt-2 flex flex-wrap gap-1.5">
+              {idea.uses.map((product) => (
+                <span key={product} className="rounded-full border border-line px-2 py-0.5 text-xs">
+                  {product}
+                </span>
+              ))}
+            </p>
+            <div className="mt-auto">
+              <Prompt text={idea.prompt} />
+            </div>
+          </div>
+        ))}
       </div>
-      <div className="mt-5 space-y-3 border-t border-line pt-4 text-xs">
-        <p className="font-medium">Project settings</p>
-        <Target n={5} name="key">
-          <span className="flex items-center gap-3">
-            <span className="font-mono">PROFILE_EDIT_KEY</span>
-            <span className="text-muted">••••••••</span>
-            <span className="rounded border border-line px-1.5">Sensitive</span>
-          </span>
-        </Target>
-        <Target n={6} name="protection">
-          <span className="flex items-center gap-3">
-            Deployment Protection <span className="text-muted">Vercel Authentication</span>
-          </span>
-        </Target>
-      </div>
-    </Tour>
+
+      <p className="mt-8 max-w-3xl text-sm text-muted">
+        Your Signal stays yours: your{" "}
+        <a href={parts.env.href} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
+          PROFILE_EDIT_KEY
+        </a>{" "}
+        is its password, and it stays private until you turn on the{" "}
+        <a href={parts.flags.href} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
+          public-access flag
+        </a>
+        . On a team,{" "}
+        <a href={parts.protection.href} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
+          Vercel Authentication
+        </a>{" "}
+        can guard the whole app too.
+      </p>
+    </div>
   );
 }
 
@@ -385,7 +408,7 @@ function Tour({ left, right, zoom = false, children }: {
   children: ReactNode;
 }) {
   return (
-    <div className="relative grid gap-8 pb-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,32rem)_minmax(0,1fr)] lg:gap-x-20">
+    <div className="relative grid grid-cols-[minmax(0,1fr)] gap-8 pb-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,32rem)_minmax(0,1fr)] lg:gap-x-20">
       <div className="space-y-8 lg:self-center">{left}</div>
       <div
         className={`order-first self-start rounded-xl border border-line bg-background p-4 text-sm lg:order-none lg:self-center ${
@@ -414,7 +437,7 @@ function Target({ n, name, region = false, className = "", style, children }: {
       style={style}
       data-xray={name}
       data-region={region || undefined}
-      className={`relative rounded outline-offset-2 ${region ? "" : "h-fit w-fit outline-1 outline-accent outline-dashed"} ${className}`}
+      className={`relative rounded outline-offset-2 ${region ? "" : "h-fit w-fit max-w-full outline-1 outline-accent outline-dashed"} ${className}`}
     >
       {children}
       <Number n={n} className={`absolute -top-2 ${region ? "-right-2" : "-left-2"}`} />
