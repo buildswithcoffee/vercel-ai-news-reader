@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { connection } from "next/server";
 import { getFeed, type FeedItem } from "@/lib/db";
-import { parts, type PartName } from "@/lib/xray";
+import { DEPLOY, REPO, parts, type PartName } from "@/lib/xray";
 import { Story } from "../story";
 import { Logo } from "../xray";
 import { Connectors } from "./connectors";
@@ -9,7 +9,8 @@ import { Slides } from "./slides";
 
 export const metadata = { title: "X-ray · Signal" };
 
-// A guided tour of each part of Signal, with notes in the margin on the Vercel product behind it.
+// A guided tour of each part of Signal, with notes in the margin on the Vercel product behind it, then
+// how to make it your own and how to share it.
 // It opens on your real feed, which zooms out while the notes' lines draw in. On narrow screens the
 // notes follow the sketch, matched by number.
 export default async function XrayPage() {
@@ -19,11 +20,15 @@ export default async function XrayPage() {
     // Wider than the other pages, to leave room for the margin notes.
     <div className="relative left-1/2 w-[min(76rem,calc(100vw-2rem))] -translate-x-1/2">
       <h1 className="text-2xl font-semibold tracking-tight">X-ray</h1>
-      <p className="mt-2 text-muted">How Vercel runs Signal, from the feed to the agent to the platform underneath.</p>
-      <Slides titles={["The feed", "The guide", "The platform"]}>
+      <p className="mt-2 text-muted">
+        How Vercel runs Signal, from the feed to the agent to the platform underneath, and how to make one of your own.
+      </p>
+      <Slides titles={["The feed", "The agent", "Vercel Platform", "Make it your own", "Share"]}>
         <FeedSlide stories={stories} />
-        <GuideSlide />
+        <AgentSlide />
         <PlatformSlide />
+        <OwnSlide />
+        <ShareSlide />
       </Slides>
     </div>
   );
@@ -88,7 +93,7 @@ function FeedSlide({ stories }: { stories: FeedItem[] }) {
   );
 }
 
-function GuideSlide() {
+function AgentSlide() {
   return (
     <Tour
       left={
@@ -182,7 +187,7 @@ function PlatformSlide() {
             copy of the database.
           </Note>
           <Note n={5} part="observability" to="logs">
-            Logs from all four land in one place, and every conversation with the guide is traced in Agent Runs.
+            Logs from all four land in one place, and every conversation with the agent is traced in Agent Runs.
           </Note>
         </>
       }
@@ -244,6 +249,130 @@ function PlatformSlide() {
         </Target>
       </div>
     </Tour>
+  );
+}
+
+// Where to change Signal, and how to keep it yours or share it.
+function OwnSlide() {
+  const files: [string, string | null, number | null][] = [
+    ["agent/", null, null],
+    ["  instructions.ts", "instructions", 1],
+    ["  tools/", null, null],
+    ["scorer/", null, null],
+    ["  worker.py", "scorer", 2],
+    ["web/", null, null],
+    ["  db/schema.sql", "sources", 3],
+    ["  flags.ts", "flags", 4],
+  ];
+  return (
+    <Tour
+      left={
+        <>
+          <Note n={1} part="agent" to="instructions">
+            Teach the agent new things: its instructions are agent/instructions.ts, and each tool is one file in
+            agent/tools/. Push, and it redeploys with everything else.
+          </Note>
+          <Note n={2} part="gateway" to="scorer">
+            Change how stories are judged: the scoring prompt and the model are at the top of scorer/worker.py. Any
+            model on AI Gateway is one string away.
+          </Note>
+          <Note n={3} part="neon" to="sources">
+            Add a source with one line in web/db/schema.sql. The next deploy adds it to Setup, ready to switch on.
+          </Note>
+        </>
+      }
+      right={
+        <>
+          <Note n={4} part="flags" to="flags">
+            Signal is private by default. Turn on the public-access flag to share it with anyone who has the link,
+            and off again whenever you like.
+          </Note>
+          <Note n={5} part="env" to="key">
+            Your PROFILE_EDIT_KEY is your password. Set it as a sensitive environment variable, and only you can sign
+            in, change Setup, or chat.
+          </Note>
+          <Note n={6} part="protection" to="protection">
+            Deploying to a team? Vercel Authentication can also stand in front of the whole app, so only your team
+            gets in.
+          </Note>
+        </>
+      }
+    >
+      <span className="font-semibold tracking-tight">signal</span>
+      <div className="mt-3 space-y-1 font-mono text-xs">
+        {files.map(([path, target, n]) =>
+          target && n ? (
+            <Target key={path} n={n} name={target}>
+              <span className="whitespace-pre">{path}</span>
+            </Target>
+          ) : (
+            <p key={path} className="whitespace-pre text-muted">
+              {path}
+            </p>
+          ),
+        )}
+      </div>
+      <div className="mt-5 space-y-3 border-t border-line pt-4 text-xs">
+        <p className="font-medium">Project settings</p>
+        <Target n={5} name="key">
+          <span className="flex items-center gap-3">
+            <span className="font-mono">PROFILE_EDIT_KEY</span>
+            <span className="text-muted">••••••••</span>
+            <span className="rounded border border-line px-1.5">Sensitive</span>
+          </span>
+        </Target>
+        <Target n={6} name="protection">
+          <span className="flex items-center gap-3">
+            Deployment Protection <span className="text-muted">Vercel Authentication</span>
+          </span>
+        </Target>
+      </div>
+    </Tour>
+  );
+}
+
+// Hand Signal to someone: a QR code for the repo, and a button that deploys a copy of their own.
+// public/share-qr.svg encodes REPO; regenerate it with `pnpm dlx qrcode -t svg -o public/share-qr.svg <url>`.
+function ShareSlide() {
+  const steps = [
+    "Press Deploy. Vercel copies the repo into your GitHub account, creates a Vercel project for it, and sets up a Neon database.",
+    "When it asks, choose a PROFILE_EDIT_KEY: any password of 32 or more characters. It's how you sign in.",
+    "Open your new Signal, sign in, and pick your interests and sources in Setup. Stories arrive within 15 minutes.",
+  ];
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-10 rounded-xl border border-line p-6 sm:p-10 lg:grid-cols-[auto_minmax(0,1fr)]">
+      <div className="mx-auto max-w-52 text-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/share-qr.svg" alt={`QR code for ${REPO}`} width={208} height={208} className="rounded-lg bg-white" />
+        <a href={REPO} target="_blank" rel="noreferrer" className="mt-3 block text-sm break-all hover:underline">
+          {REPO.replace("https://", "")}
+        </a>
+      </div>
+      <div>
+        <h2 className="font-serif text-3xl font-medium tracking-tight">Get your own Signal</h2>
+        <ol className="mt-5 space-y-3">
+          {steps.map((step, index) => (
+            <li key={index} className="flex gap-3">
+              <Number n={index + 1} className="mt-0.5" />
+              <p className="text-sm">{step}</p>
+            </li>
+          ))}
+        </ol>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <a href={DEPLOY} target="_blank" rel="noreferrer" className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-background hover:opacity-90">
+            ▲ Deploy to Vercel
+          </a>
+          <a href={REPO} target="_blank" rel="noreferrer" className="rounded-md border border-line px-4 py-2 text-sm font-medium hover:border-accent">
+            View on GitHub ↗
+          </a>
+        </div>
+        <p className="mt-6 text-sm text-muted">
+          Rather start from the code? Run <code className="font-mono break-all text-foreground">git clone {REPO}</code>, then{" "}
+          <code className="font-mono text-foreground">vercel</code> in the folder to create the project, and add Neon from
+          the Vercel Marketplace.
+        </p>
+      </div>
+    </div>
   );
 }
 

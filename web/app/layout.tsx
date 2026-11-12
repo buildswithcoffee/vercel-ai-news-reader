@@ -4,7 +4,7 @@ import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 import { countOpenFollowUps, isOwner } from "@/lib/db";
 import { followUpsFlag, publicAccessFlag } from "@/flags";
 import { Guide } from "./guide";
-import { ThemeSwitch, getTheme } from "./theme";
+import { getTheme } from "./theme";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -57,7 +57,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               >
                 X-ray
               </Link>
-              <ThemeSwitch />
             </div>
           </div>
         </header>

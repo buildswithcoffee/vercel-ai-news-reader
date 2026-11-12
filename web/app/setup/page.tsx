@@ -6,6 +6,7 @@ import { OWNER_COOKIE } from "@/lib/profile-owner";
 import { requestRescore } from "@/lib/backend";
 import { parts, type PartName } from "@/lib/xray";
 import { Sources } from "./sources";
+import { ThemeSwitch } from "../theme";
 
 export const metadata = { title: "Setup · Signal" };
 
@@ -92,6 +93,15 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
           Update my feed
         </button>
       </form>
+
+      {/* Outside the form above: the theme switch is its own form, and applies right away. */}
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">
+        <div>
+          <h2 className="font-medium">Appearance</h2>
+          <p className="mt-1 text-sm text-muted">System follows your device. Everyone else sees their own system setting.</p>
+        </div>
+        <ThemeSwitch />
+      </div>
 
       <form action={signOut} className="mt-6">
         <button className="text-sm text-muted hover:text-foreground">Sign out</button>
