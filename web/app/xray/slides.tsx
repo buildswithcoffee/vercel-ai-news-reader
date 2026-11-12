@@ -24,14 +24,14 @@ export function Slides({ titles, children }: { titles: string[]; children: React
 
   return (
     <>
-      <div role="tablist" className="mt-6 flex gap-1 rounded-lg bg-surface p-1 text-sm w-fit">
+      <div role="tablist" className="mt-6 flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-surface p-1 text-sm [scrollbar-width:none]">
         {titles.map((title, index) => (
           <button
             key={title}
             role="tab"
             aria-selected={index === active}
             onClick={() => show(index)}
-            className="rounded-md px-3 py-1.5 text-muted hover:text-foreground aria-selected:bg-background aria-selected:text-foreground aria-selected:shadow-sm"
+            className="shrink-0 rounded-md px-3 py-1.5 whitespace-nowrap text-muted hover:text-foreground aria-selected:bg-background aria-selected:text-foreground aria-selected:shadow-sm"
           >
             {index + 1}. {title}
           </button>
